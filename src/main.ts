@@ -1,38 +1,59 @@
-import type { Side, Direction, ActionType } from './types';
+import type { Side, Mode, Direction, ActionType } from './types';
 import { Game } from './Game';
 import { AudioEngine } from './Audio';
-import { GameUI, buildSideSelect, type UICallbacks } from './UI';
+import { GameUI, buildSideSelect, buildModeSelect, type UICallbacks } from './UI';
 import { Ch01 } from './chapters/Ch01';
+import { Sp01 } from './chapters/Sp01';
 import './style.css';
 
-const CHAPTERS = { ch01: Ch01 };
+const CHAPTERS_TOGETHER = { ch01: Ch01 };
+const CHAPTERS_SOLO = { sp01: Sp01 };
 
 function start() {
   const app = document.getElementById('app')!;
   const audio = new AudioEngine();
 
   const callbacks: UICallbacks = {
+    onPickMode: (mode: Mode) => {
+      if (mode === 'together') {
+        buildSideSelect(app, callbacks);
+      } else {
+        const existing = Game.load('solo', 'dreamer', CHAPTERS_SOLO);
+        if (existing && !existing.state.completed) {
+          showResumePrompt(app, existing.state.side, existing, audio);
+          return;
+        }
+        Game.clearSave('solo', 'dreamer', 'sp01');
+        startSoloGame(app, audio);
+      }
+    },
     onPickSide: (side: Side) => {
-      const existing = Game.load(side, CHAPTERS);
+      const existing = Game.load('together', side, CHAPTERS_TOGETHER);
       if (existing && !existing.state.completed) {
         showResumePrompt(app, side, existing, audio);
         return;
       }
-      Game.clearSave(side, 'ch01');
+      Game.clearSave('together', side, 'ch01');
       startGame(app, side, audio);
     },
     onNewGame: () => {
-      buildSideSelect(app, callbacks);
+      buildModeSelect(app, callbacks);
     },
     onSave: () => {
       // handled in GameUI
     },
-    onNavigate: () => '',
+    onNavigate: () => ({ text: '', roomChanged: false, movementChanged: false }),
     onAct: () => '',
     onUseItemOnRoom: () => '',
   };
 
-  buildSideSelect(app, callbacks);
+  buildModeSelect(app, callbacks);
+}
+
+function startSoloGame(app: HTMLElement, audio: AudioEngine) {
+  // state.side is a seed; in solo mode rendering is driven by movement.mode.
+  const game = new Game('solo', 'dreamer', Sp01);
+  startGameWithExisting(app, game.state.side, game, audio);
 }
 
 function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: AudioEngine) {
@@ -60,13 +81,17 @@ function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: Audio
     startGameWithExisting(app, side, game, audio);
   });
   document.getElementById('resume-no')!.addEventListener('click', () => {
-    Game.clearSave(side, 'ch01');
-    startGame(app, side, audio);
+    Game.clearSave(game.mode, side, game.chapter.id);
+    if (game.mode === 'solo') {
+      startSoloGame(app, audio);
+    } else {
+      startGame(app, side, audio);
+    }
   });
 }
 
 function startGame(app: HTMLElement, side: Side, audio: AudioEngine) {
-  const game = new Game(side, Ch01);
+  const game = new Game('together', side, Ch01);
   startGameWithExisting(app, side, game, audio);
 }
 
@@ -84,7 +109,13 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
         audio.setAmbient(game.getPerspective()?.ambient ?? 'default');
         game.save();
       }
-      return result.text;
+      return {
+        text: result.text,
+        roomChanged: result.roomChanged,
+        movementChanged: result.movementChanged,
+        transitionOut: result.previousMovement?.transitionOut,
+        transitionIn: result.currentMovement?.transitionIn,
+      };
     },
     onAct: (action: ActionType, itemId?: string) => {
       const result = game.act(action, itemId);
@@ -100,6 +131,7 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
       game.save();
     },
     onPickSide: () => {},
+    onPickMode: () => {},
     onNewGame: () => {},
   };
 
