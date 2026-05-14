@@ -141,6 +141,9 @@ export class GameUI {
     this.textRenderer = new TextRenderer(this.textPaneEl);
     this.snapshot = this.game.getSnapshot();
 
+    const layout = document.getElementById('game-layout');
+    if (layout) layout.dataset.side = this.snapshot.side;
+
     this.wireEvents();
     this.render();
   }
