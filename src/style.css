@@ -445,6 +445,75 @@ html, body {
   opacity: 0.5;
 }
 
+/* ─── Chapter complete ─── */
+
+.chapter-complete {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 6, 4, 0.98);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2em 1.5em;
+  z-index: 1100;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.chapter-complete.visible {
+  opacity: 1;
+}
+
+.cc-frame {
+  max-width: 32em;
+  width: 100%;
+  text-align: center;
+}
+
+.cc-label {
+  font-family: var(--font-controls);
+  font-size: 0.7rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 1em;
+}
+
+.cc-title {
+  font-family: var(--font-dreamer);
+  font-size: 1.4rem;
+  color: var(--accent-dreamer);
+  margin-bottom: 2em;
+  letter-spacing: 0.04em;
+}
+
+.cc-epilogue {
+  font-family: var(--font-dreamer);
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+  margin-bottom: 3em;
+}
+
+.cc-button {
+  background: transparent;
+  border: 1px solid var(--text-dim);
+  color: var(--text);
+  font-family: var(--font-controls);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 10px 22px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cc-button:active {
+  background: var(--btn-hover);
+}
+
 /* ─── Journal ─── */
 
 .journal-chip {

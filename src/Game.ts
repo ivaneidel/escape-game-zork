@@ -197,7 +197,29 @@ export class Game {
     return `You can't go that way. There's ${map[dir]}.`;
   }
 
-  act(action: ActionType, itemId?: string): { text: string } {
+  act(action: ActionType, itemId?: string): {
+    text: string;
+    movementChanged: boolean;
+    previousMovement: Movement | null;
+    currentMovement: Movement | null;
+    roomChanged: boolean;
+  } {
+    const previousMovementIdx = this.state.currentMovement;
+    const previousMovement = this.getCurrentMovement();
+    const previousRoom = this.state.currentRoom;
+    const result = this.actInner(action, itemId);
+    const movementChanged = this.state.currentMovement !== previousMovementIdx;
+    const roomChanged = this.state.currentRoom !== previousRoom;
+    return {
+      text: result.text,
+      movementChanged,
+      previousMovement,
+      currentMovement: this.getCurrentMovement(),
+      roomChanged,
+    };
+  }
+
+  private actInner(action: ActionType, itemId?: string): { text: string } {
     const persp = this.getPerspective();
     const effectiveItems = this.getEffectiveItems(persp);
 
@@ -260,10 +282,40 @@ export class Game {
       return { text: `Using the ${item.name} does nothing.` };
     }
 
+    if (action === 'note') {
+      if (item.onAction?.note) {
+        const ctx = this.makeContext(item.id);
+        const result = item.onAction.note(ctx);
+        this.applyEffects(result.effects);
+        return { text: result.text };
+      }
+      return { text: `Nothing worth noting about the ${item.name}.` };
+    }
+
     return { text: `You can't do that with the ${item.name}.` };
   }
 
-  useInventoryItemOnRoom(invItemId: string, targetItemId: string): { text: string } {
+  useInventoryItemOnRoom(invItemId: string, targetItemId: string): {
+    text: string;
+    movementChanged: boolean;
+    previousMovement: Movement | null;
+    currentMovement: Movement | null;
+    roomChanged: boolean;
+  } {
+    const previousMovementIdx = this.state.currentMovement;
+    const previousMovement = this.getCurrentMovement();
+    const previousRoom = this.state.currentRoom;
+    const result = this.useInventoryItemOnRoomInner(invItemId, targetItemId);
+    return {
+      text: result.text,
+      movementChanged: this.state.currentMovement !== previousMovementIdx,
+      previousMovement,
+      currentMovement: this.getCurrentMovement(),
+      roomChanged: this.state.currentRoom !== previousRoom,
+    };
+  }
+
+  private useInventoryItemOnRoomInner(invItemId: string, targetItemId: string): { text: string } {
     const combined = this.findItemInRoom(this.state.currentRoom, targetItemId);
     if (!combined) return { text: `You don't see that here.` };
 
@@ -322,11 +374,30 @@ export class Game {
           });
         }
       }
+      if (e.advanceToMovement) {
+        const idx = this.resolveMovementIndex(e.advanceToMovement.movementId);
+        if (idx !== null) {
+          this.state.currentMovement = idx;
+          this.state.currentRoom = e.advanceToMovement.targetRoom;
+          this.markRoomVisited(e.advanceToMovement.targetRoom);
+          const mv = this.chapter.movements?.[idx];
+          if (mv?.mode === 'dreamer' || mv?.mode === 'reckoner') {
+            this.state.side = mv.mode;
+          }
+        }
+      }
       if (e.complete) {
         this.state.completed = true;
       }
     }
     this.checkTriggers();
+  }
+
+  private resolveMovementIndex(movementId?: string): number | null {
+    if (!this.chapter.movements) return null;
+    if (!movementId) return null;
+    const idx = this.chapter.movements.findIndex(m => m.id === movementId);
+    return idx >= 0 ? idx : null;
   }
 
   private makeContext(itemId?: string) {
@@ -446,7 +517,7 @@ export class Game {
         return { id, label: id };
       }),
       exits: room.exits.filter(e => !e.blockedBy || this.state.flags[e.blockedBy]).map(e => e.direction),
-      actions: ['look', 'open', 'take', 'push', 'read', 'use'],
+      actions: ['look', 'open', 'take', 'read', 'use', 'note'],
       completed: this.state.completed,
       cast: this.chapter.cast,
       hasJournal: Boolean(this.chapter.usesJournal),
@@ -459,6 +530,7 @@ export class Game {
     const data = {
       state: this.state,
       chapterId: this.chapter.id,
+      contentVersion: this.chapter.contentVersion ?? 1,
     };
     try {
       localStorage.setItem(key, JSON.stringify(data));
@@ -472,20 +544,37 @@ export class Game {
       const key = keyFor(mode, side, cid);
       try {
         const raw = localStorage.getItem(key);
-        if (raw) {
-          const data = JSON.parse(raw) as { state: GameState; chapterId: string };
-          const game = new Game(mode, data.state.side, chapter);
-          game.state = data.state;
-          // Older saves (pre-Step 3) had no currentMovement field.
-          if (game.state.currentMovement === undefined) {
-            game.state.currentMovement = game.roomToMovement.get(game.state.currentRoom) ?? 0;
-          }
-          // Older saves (pre-Step 5) had no journal field.
-          if (!game.state.journal) {
-            game.state.journal = [];
-          }
-          return game;
+        if (!raw) continue;
+
+        const data = JSON.parse(raw) as {
+          state: GameState;
+          chapterId: string;
+          contentVersion?: number;
+        };
+
+        const savedVersion = data.contentVersion ?? 1;
+        const chapterVersion = chapter.contentVersion ?? 1;
+        if (savedVersion !== chapterVersion) {
+          // Chapter content changed since this save was written. Discard.
+          localStorage.removeItem(key);
+          continue;
         }
+
+        if (!data.state.currentRoom || !chapter.rooms[data.state.currentRoom]) {
+          // Save points at a room that no longer exists. Discard.
+          localStorage.removeItem(key);
+          continue;
+        }
+
+        const game = new Game(mode, data.state.side, chapter);
+        game.state = data.state;
+        if (game.state.currentMovement === undefined) {
+          game.state.currentMovement = game.roomToMovement.get(game.state.currentRoom) ?? 0;
+        }
+        if (!game.state.journal) {
+          game.state.journal = [];
+        }
+        return game;
       } catch {
         localStorage.removeItem(key);
       }

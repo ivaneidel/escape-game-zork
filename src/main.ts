@@ -43,8 +43,9 @@ function start() {
       // handled in GameUI
     },
     onNavigate: () => ({ text: '', roomChanged: false, movementChanged: false }),
-    onAct: () => '',
-    onUseItemOnRoom: () => '',
+    onAct: () => ({ text: '', movementChanged: false }),
+    onUseItemOnRoom: () => ({ text: '', movementChanged: false }),
+    onChapterComplete: () => {},
   };
 
   buildModeSelect(app, callbacks);
@@ -119,13 +120,29 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
     },
     onAct: (action: ActionType, itemId?: string) => {
       const result = game.act(action, itemId);
+      if (result.roomChanged) {
+        audio.setAmbient(game.getPerspective()?.ambient ?? 'default');
+      }
       game.save();
-      return result.text;
+      return {
+        text: result.text,
+        movementChanged: result.movementChanged,
+        transitionOut: result.previousMovement?.transitionOut,
+        transitionIn: result.currentMovement?.transitionIn,
+      };
     },
     onUseItemOnRoom: (invItemId: string, targetId: string) => {
       const result = game.useInventoryItemOnRoom(invItemId, targetId);
+      if (result.roomChanged) {
+        audio.setAmbient(game.getPerspective()?.ambient ?? 'default');
+      }
       game.save();
-      return result.text;
+      return {
+        text: result.text,
+        movementChanged: result.movementChanged,
+        transitionOut: result.previousMovement?.transitionOut,
+        transitionIn: result.currentMovement?.transitionIn,
+      };
     },
     onSave: () => {
       game.save();
@@ -133,6 +150,10 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
     onPickSide: () => {},
     onPickMode: () => {},
     onNewGame: () => {},
+    onChapterComplete: () => {
+      Game.clearSave(game.mode, game.state.side, game.chapter.id);
+      buildModeSelect(app, callbacks);
+    },
   };
 
   const ui = new GameUI(app, game, audio, callbacks);

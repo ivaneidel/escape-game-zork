@@ -19,14 +19,22 @@ export interface NavigateResult {
   transitionIn?: string;
 }
 
+export interface ActResult {
+  text: string;
+  movementChanged: boolean;
+  transitionOut?: string;
+  transitionIn?: string;
+}
+
 export interface UICallbacks {
   onNavigate: (dir: Direction) => NavigateResult;
-  onAct: (action: ActionType, itemId?: string) => string;
-  onUseItemOnRoom: (invItemId: string, targetId: string) => string;
+  onAct: (action: ActionType, itemId?: string) => ActResult;
+  onUseItemOnRoom: (invItemId: string, targetId: string) => ActResult;
   onSave: () => void;
   onPickSide: (side: Side) => void;
   onPickMode: (mode: Mode) => void;
   onNewGame: () => void;
+  onChapterComplete: () => void;
 }
 
 export function buildModeSelect(container: HTMLElement, callbacks: UICallbacks): void {
@@ -116,9 +124,9 @@ function buildLayout(): { app: HTMLElement; header: HTMLElement; textPane: HTMLE
           <button class="action-btn" data-action="look">LOOK</button>
           <button class="action-btn" data-action="open">OPEN</button>
           <button class="action-btn" data-action="take">TAKE</button>
-          <button class="action-btn" data-action="push">PUSH</button>
           <button class="action-btn" data-action="read">READ</button>
           <button class="action-btn" data-action="use">USE</button>
+          <button class="action-btn" data-action="note">NOTE</button>
         </div>
       </div>
       <div id="inventory-bar">
@@ -167,6 +175,8 @@ export class GameUI {
 
   private focus: FocusState = { itemId: null, isInventory: false };
   private usePending: string | null = null;
+  private epilogueShown = false;
+  private itemOrderCache: { roomId: string; order: string[] } | null = null;
 
   constructor(_container: HTMLElement, game: Game, audio: AudioEngine, callbacks: UICallbacks) {
     this.game = game;
@@ -208,6 +218,7 @@ export class GameUI {
         }
         this.refreshFromGame();
         this.showResultText(result.text);
+        this.maybeShowEpilogue();
       });
     });
 
@@ -230,16 +241,21 @@ export class GameUI {
       this.showResultText(muted ? 'Sound off.' : 'Sound on.');
     });
 
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', async (e) => {
       const target = e.target as HTMLElement;
       if (target.classList.contains('item-chip')) {
         const itemId = target.dataset.itemId;
         if (!itemId) return;
         if (this.usePending) {
-          const text = this.callbacks.onUseItemOnRoom(this.usePending, itemId);
+          const result = this.callbacks.onUseItemOnRoom(this.usePending, itemId);
           this.usePending = null;
+          if (result.movementChanged) {
+            await this.showMovementTransition(result.transitionOut, result.transitionIn);
+            this.focus = { itemId: null, isInventory: false };
+          }
           this.refreshFromGame();
-          this.showResultText(text);
+          this.showResultText(result.text);
+          this.maybeShowEpilogue();
           return;
         }
         this.focusItem(itemId);
@@ -289,7 +305,7 @@ export class GameUI {
     });
   }
 
-  private handleAction(action: ActionType): void {
+  private async handleAction(action: ActionType): Promise<void> {
     this.audio.playSfx('click');
 
     if (action === 'look') {
@@ -309,9 +325,14 @@ export class GameUI {
     }
 
     const itemId = this.focus.itemId ?? undefined;
-    const text = this.callbacks.onAct(action, itemId);
+    const result = this.callbacks.onAct(action, itemId);
+    if (result.movementChanged) {
+      await this.showMovementTransition(result.transitionOut, result.transitionIn);
+      this.focus = { itemId: null, isInventory: false };
+    }
     this.refreshFromGame();
-    this.showResultText(text);
+    this.showResultText(result.text);
+    this.maybeShowEpilogue();
 
     if (action === 'take' && this.focus.itemId) {
       this.focus = { itemId: null, isInventory: false };
@@ -381,7 +402,30 @@ export class GameUI {
       this.itemListEl.innerHTML = '<span class="no-items">Nothing of note here.</span>';
       return;
     }
-    this.itemListEl.innerHTML = items.map(i =>
+
+    const roomId = this.snapshot.roomId;
+    // Shuffle order is computed once per room visit and kept until the
+    // player moves elsewhere. Items appearing or disappearing mid-visit are
+    // appended at the end in their natural order.
+    if (!this.itemOrderCache || this.itemOrderCache.roomId !== roomId) {
+      const shuffled = items.map(i => i.id);
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+      }
+      this.itemOrderCache = { roomId, order: shuffled };
+    }
+    const order = this.itemOrderCache.order;
+    const ordered = order
+      .map(id => items.find(i => i.id === id))
+      .filter((i): i is typeof items[number] => Boolean(i));
+    const newItems = items.filter(i => !order.includes(i.id));
+    if (newItems.length > 0) {
+      this.itemOrderCache.order = [...order, ...newItems.map(i => i.id)];
+    }
+    const finalList = [...ordered, ...newItems];
+
+    this.itemListEl.innerHTML = finalList.map(i =>
       `<button class="item-chip" data-item-id="${i.id}">${i.name}</button>`
     ).join('');
   }
@@ -401,44 +445,19 @@ export class GameUI {
   }
 
   private renderActions(): void {
+    // All buttons always tappable. Invalid taps get a graceful "nothing
+    // happens" from the engine. Removing the lit/unlit telegraph forces the
+    // player to think instead of pattern-matching.
     this.actionBarEl.querySelectorAll('.action-btn').forEach(btn => {
-      const action = (btn as HTMLElement).dataset.action as ActionType;
-      const valid = this.isActionValid(action);
-      btn.classList.toggle('disabled', !valid);
-
-      if (action === 'take' && this.focus.itemId && !this.focus.isInventory) {
-        const item = this.game.getItem(this.focus.itemId);
-        if (item && this.game.state.inventory.includes(item.id)) {
-          btn.classList.add('disabled');
-        }
-      }
+      btn.classList.remove('disabled');
     });
   }
 
-  private isActionValid(action: ActionType): boolean {
-    if (action === 'look') return true;
-    if (!this.focus.itemId) return false;
-
-    if (this.focus.isInventory) {
-      if (action === 'use') return true;
-      return false;
-    }
-
-    const item = this.game.getItem(this.focus.itemId);
-    if (!item) return false;
-
-    if (action === 'take') return item.takeable && !this.game.state.inventory.includes(item.id);
-    if (action === 'open' || action === 'push' || action === 'read') return item.actions.includes(action);
-    if (action === 'use') return item.actions.includes('use');
-
-    return false;
-  }
-
   private renderDpad(): void {
-    const exits = this.snapshot.exits;
+    // Same as renderActions — always live. Engine returns "can't go that
+    // way" when the direction isn't an exit.
     this.dpadEl.querySelectorAll('.dpad-btn').forEach(btn => {
-      const dir = (btn as HTMLElement).dataset.dir as Direction;
-      btn.classList.toggle('disabled', !exits.includes(dir));
+      btn.classList.remove('disabled');
     });
   }
 
@@ -471,6 +490,39 @@ export class GameUI {
   showEpilogue(text: string): void {
     this.textRenderer.clear();
     this.textRenderer.appendHtml(`<div class="epilogue">${text}</div>`);
+  }
+
+  private maybeShowEpilogue(): void {
+    if (this.epilogueShown || !this.snapshot.completed) return;
+    this.epilogueShown = true;
+    const epilogue = this.game.chapter.epilogue ?? '';
+    setTimeout(() => {
+      this.showChapterComplete(this.game.chapter.title, epilogue);
+    }, 1400);
+  }
+
+  private showChapterComplete(title: string, epilogue: string): void {
+    const overlay = document.createElement('div');
+    overlay.className = 'chapter-complete';
+    overlay.innerHTML = `
+      <div class="cc-frame">
+        <div class="cc-label">Chapter complete</div>
+        <div class="cc-title"></div>
+        <div class="cc-epilogue"></div>
+        <button class="cc-button" type="button">Return</button>
+      </div>
+    `;
+    (overlay.querySelector('.cc-title') as HTMLElement).textContent = title;
+    (overlay.querySelector('.cc-epilogue') as HTMLElement).textContent = epilogue;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+    overlay.querySelector('.cc-button')!.addEventListener('click', () => {
+      overlay.classList.remove('visible');
+      setTimeout(() => {
+        overlay.remove();
+        this.callbacks.onChapterComplete();
+      }, 500);
+    });
   }
 
   showMovementTransition(outText?: string, inText?: string): Promise<void> {

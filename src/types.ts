@@ -8,7 +8,7 @@ export type Mode = 'solo' | 'together';
 
 export type Direction = 'north' | 'south' | 'east' | 'west';
 
-export type ActionType = 'look' | 'open' | 'take' | 'push' | 'read' | 'use';
+export type ActionType = 'look' | 'open' | 'take' | 'push' | 'read' | 'use' | 'note';
 
 export interface FlagCondition {
   flag: string;
@@ -30,6 +30,10 @@ export interface SideEffect {
   enableExit?: { direction: Direction; roomId: string };
   complete?: boolean;
   addJournalEntry?: JournalEntry;
+  // Diegetic movement advance. Sets currentMovement and currentRoom,
+  // syncs state.side for dreamer/reckoner modes. The UI fires the transition
+  // overlay when an action result reports movementChanged.
+  advanceToMovement?: { movementId?: string; targetRoom: string };
 }
 
 export interface ActionHandler {
@@ -55,6 +59,7 @@ export interface ItemActionMap {
   push?: ActionHandler;
   read?: ActionHandler;
   use?: ActionHandler;
+  note?: ActionHandler;
 }
 
 export interface Item {
@@ -132,6 +137,10 @@ export interface Chapter {
   // When true, a Journal chip appears in the inventory bar and chapter
   // handlers can append entries via SideEffect.addJournalEntry.
   usesJournal?: boolean;
+  // Bump when chapter content changes in ways that invalidate older saves.
+  // Saves carry this stamp; mismatching saves are discarded on load.
+  // Defaults to 1 if unset (both in chapter and save).
+  contentVersion?: number;
 }
 
 export interface RoomState {

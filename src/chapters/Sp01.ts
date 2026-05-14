@@ -25,6 +25,7 @@ export const Sp01: Chapter = {
     superior: 'Drozdov',
   },
   usesJournal: true,
+  contentVersion: 2,
 
   prologue: `Six weeks since the dreams clarified. You have not told anyone.
 
