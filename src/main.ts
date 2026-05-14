@@ -3,9 +3,11 @@ import { Game } from './Game';
 import { AudioEngine } from './Audio';
 import { GameUI, buildSideSelect, buildModeSelect, type UICallbacks } from './UI';
 import { Ch01 } from './chapters/Ch01';
+import { Sp01 } from './chapters/Sp01';
 import './style.css';
 
-const CHAPTERS = { ch01: Ch01 };
+const CHAPTERS_TOGETHER = { ch01: Ch01 };
+const CHAPTERS_SOLO = { sp01: Sp01 };
 
 function start() {
   const app = document.getElementById('app')!;
@@ -16,11 +18,17 @@ function start() {
       if (mode === 'together') {
         buildSideSelect(app, callbacks);
       } else {
-        showSoloPlaceholder(app, callbacks);
+        const existing = Game.load('solo', 'dreamer', CHAPTERS_SOLO);
+        if (existing && !existing.state.completed) {
+          showResumePrompt(app, existing.state.side, existing, audio);
+          return;
+        }
+        Game.clearSave('solo', 'dreamer', 'sp01');
+        startSoloGame(app, audio);
       }
     },
     onPickSide: (side: Side) => {
-      const existing = Game.load('together', side, CHAPTERS);
+      const existing = Game.load('together', side, CHAPTERS_TOGETHER);
       if (existing && !existing.state.completed) {
         showResumePrompt(app, side, existing, audio);
         return;
@@ -42,24 +50,10 @@ function start() {
   buildModeSelect(app, callbacks);
 }
 
-function showSoloPlaceholder(app: HTMLElement, callbacks: UICallbacks) {
-  app.innerHTML = `
-    <div id="side-select">
-      <div class="side-select-content">
-        <h1 class="side-select-title">Solo</h1>
-        <p class="side-select-subtitle">Not yet. The dreams haven't started.</p>
-        <div class="side-select-buttons">
-          <button class="side-btn reckoner-btn" id="solo-back">
-            <span class="side-btn-label">Back</span>
-            <span class="side-btn-desc">Choose another path</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.getElementById('solo-back')!.addEventListener('click', () => {
-    buildModeSelect(app, callbacks);
-  });
+function startSoloGame(app: HTMLElement, audio: AudioEngine) {
+  // state.side is a seed; in solo mode rendering is driven by movement.mode.
+  const game = new Game('solo', 'dreamer', Sp01);
+  startGameWithExisting(app, game.state.side, game, audio);
 }
 
 function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: AudioEngine) {
@@ -87,8 +81,12 @@ function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: Audio
     startGameWithExisting(app, side, game, audio);
   });
   document.getElementById('resume-no')!.addEventListener('click', () => {
-    Game.clearSave('together', side, 'ch01');
-    startGame(app, side, audio);
+    Game.clearSave(game.mode, side, game.chapter.id);
+    if (game.mode === 'solo') {
+      startSoloGame(app, audio);
+    } else {
+      startGame(app, side, audio);
+    }
   });
 }
 
