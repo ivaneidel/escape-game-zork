@@ -3,12 +3,24 @@ const TYPING_SPEED_MS = 20;
 export class TextRenderer {
   private element: HTMLElement;
   private abort: boolean = false;
+  private currentPromise: Promise<void> | null = null;
 
   constructor(element: HTMLElement) {
     this.element = element;
   }
 
   async show(text: string, append: boolean = false): Promise<void> {
+    if (this.currentPromise) {
+      this.abort = true;
+      await this.currentPromise;
+    }
+
+    this.currentPromise = this.typeText(text, append);
+    await this.currentPromise;
+    this.currentPromise = null;
+  }
+
+  private async typeText(text: string, append: boolean): Promise<void> {
     if (!append) this.element.innerHTML = '';
     this.abort = false;
 
