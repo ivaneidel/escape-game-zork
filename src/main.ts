@@ -1,7 +1,7 @@
-import type { Side, Direction, ActionType } from './types';
+import type { Side, Mode, Direction, ActionType } from './types';
 import { Game } from './Game';
 import { AudioEngine } from './Audio';
-import { GameUI, buildSideSelect, type UICallbacks } from './UI';
+import { GameUI, buildSideSelect, buildModeSelect, type UICallbacks } from './UI';
 import { Ch01 } from './chapters/Ch01';
 import './style.css';
 
@@ -12,27 +12,54 @@ function start() {
   const audio = new AudioEngine();
 
   const callbacks: UICallbacks = {
+    onPickMode: (mode: Mode) => {
+      if (mode === 'together') {
+        buildSideSelect(app, callbacks);
+      } else {
+        showSoloPlaceholder(app, callbacks);
+      }
+    },
     onPickSide: (side: Side) => {
-      const existing = Game.load(side, CHAPTERS);
+      const existing = Game.load('together', side, CHAPTERS);
       if (existing && !existing.state.completed) {
         showResumePrompt(app, side, existing, audio);
         return;
       }
-      Game.clearSave(side, 'ch01');
+      Game.clearSave('together', side, 'ch01');
       startGame(app, side, audio);
     },
     onNewGame: () => {
-      buildSideSelect(app, callbacks);
+      buildModeSelect(app, callbacks);
     },
     onSave: () => {
       // handled in GameUI
     },
-    onNavigate: () => '',
+    onNavigate: () => ({ text: '', roomChanged: false, movementChanged: false }),
     onAct: () => '',
     onUseItemOnRoom: () => '',
   };
 
-  buildSideSelect(app, callbacks);
+  buildModeSelect(app, callbacks);
+}
+
+function showSoloPlaceholder(app: HTMLElement, callbacks: UICallbacks) {
+  app.innerHTML = `
+    <div id="side-select">
+      <div class="side-select-content">
+        <h1 class="side-select-title">Solo</h1>
+        <p class="side-select-subtitle">Not yet. The dreams haven't started.</p>
+        <div class="side-select-buttons">
+          <button class="side-btn reckoner-btn" id="solo-back">
+            <span class="side-btn-label">Back</span>
+            <span class="side-btn-desc">Choose another path</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('solo-back')!.addEventListener('click', () => {
+    buildModeSelect(app, callbacks);
+  });
 }
 
 function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: AudioEngine) {
@@ -60,13 +87,13 @@ function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: Audio
     startGameWithExisting(app, side, game, audio);
   });
   document.getElementById('resume-no')!.addEventListener('click', () => {
-    Game.clearSave(side, 'ch01');
+    Game.clearSave('together', side, 'ch01');
     startGame(app, side, audio);
   });
 }
 
 function startGame(app: HTMLElement, side: Side, audio: AudioEngine) {
-  const game = new Game(side, Ch01);
+  const game = new Game('together', side, Ch01);
   startGameWithExisting(app, side, game, audio);
 }
 
@@ -84,7 +111,13 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
         audio.setAmbient(game.getPerspective()?.ambient ?? 'default');
         game.save();
       }
-      return result.text;
+      return {
+        text: result.text,
+        roomChanged: result.roomChanged,
+        movementChanged: result.movementChanged,
+        transitionOut: result.previousMovement?.transitionOut,
+        transitionIn: result.currentMovement?.transitionIn,
+      };
     },
     onAct: (action: ActionType, itemId?: string) => {
       const result = game.act(action, itemId);
@@ -100,6 +133,7 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
       game.save();
     },
     onPickSide: () => {},
+    onPickMode: () => {},
     onNewGame: () => {},
   };
 

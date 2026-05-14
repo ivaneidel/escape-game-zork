@@ -1,5 +1,11 @@
 export type Side = 'dreamer' | 'reckoner';
 
+// What a room renders as right now. Side plus a 'neutral' tone for
+// real-world bookends that belong to neither half.
+export type RenderMode = Side | 'neutral';
+
+export type Mode = 'solo' | 'together';
+
 export type Direction = 'north' | 'south' | 'east' | 'west';
 
 export type ActionType = 'look' | 'open' | 'take' | 'push' | 'read' | 'use';
@@ -9,6 +15,13 @@ export interface FlagCondition {
   value: boolean | string | number;
 }
 
+export interface JournalEntry {
+  id: string;
+  label: string;
+  body: string;
+  addedInMovement?: number;
+}
+
 export interface SideEffect {
   setFlags?: Record<string, string | number | boolean>;
   showText?: string;
@@ -16,6 +29,7 @@ export interface SideEffect {
   removeItem?: string;
   enableExit?: { direction: Direction; roomId: string };
   complete?: boolean;
+  addJournalEntry?: JournalEntry;
 }
 
 export interface ActionHandler {
@@ -25,6 +39,7 @@ export interface ActionHandler {
 export interface ActionContext {
   flags: Record<string, string | number | boolean>;
   inventory: string[];
+  journal: JournalEntry[];
   roomId: string;
   itemId?: string;
 }
@@ -78,8 +93,9 @@ export interface Room {
   id: string;
   name: string;
   exits: RoomExit[];
-  dreamer: Perspective;
-  reckoner: Perspective;
+  dreamer?: Perspective;
+  reckoner?: Perspective;
+  neutral?: Perspective;
 }
 
 export interface Trigger {
@@ -87,6 +103,17 @@ export interface Trigger {
   when: FlagCondition[];
   then: SideEffect[];
   once: boolean;
+}
+
+export interface Movement {
+  id: string;
+  title: string;
+  // In solo mode this drives perspective rendering per room.
+  // In together mode this is ignored — side is fixed by the player's pick.
+  mode?: RenderMode;
+  rooms: string[];
+  transitionIn?: string;
+  transitionOut?: string;
 }
 
 export interface Chapter {
@@ -99,6 +126,12 @@ export interface Chapter {
   prologue: string;
   epilogue: string;
   completionFlag: string;
+  // Optional. Required for solo chapters; ignored for together chapters
+  // that don't author them.
+  movements?: Movement[];
+  // When true, a Journal chip appears in the inventory bar and chapter
+  // handlers can append entries via SideEffect.addJournalEntry.
+  usesJournal?: boolean;
 }
 
 export interface RoomState {
@@ -110,7 +143,9 @@ export interface GameState {
   side: Side;
   chapterId: string;
   currentRoom: string;
+  currentMovement: number;
   inventory: string[];
+  journal: JournalEntry[];
   flags: Record<string, string | number | boolean>;
   roomStates: Record<string, RoomState>;
   completed: boolean;
@@ -120,6 +155,7 @@ export interface GameSnapshot {
   roomName: string;
   roomId: string;
   side: Side;
+  renderMode: RenderMode;
   description: string;
   items: { id: string; name: string; actions: ActionType[]; takeable: boolean }[];
   focusedItem: { id: string; name: string; examine: string; actions: ActionType[] } | null;
@@ -129,4 +165,6 @@ export interface GameSnapshot {
   actions: ActionType[];
   completed: boolean;
   cast: Record<string, string>;
+  hasJournal: boolean;
+  journal: JournalEntry[];
 }

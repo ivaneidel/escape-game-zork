@@ -1,15 +1,62 @@
-import type { Direction, ActionType, Side, GameSnapshot } from './types';
+import type { Direction, ActionType, Side, Mode, GameSnapshot } from './types';
 import { TextRenderer } from './TextRenderer';
 import { Game } from './Game';
 import { AudioEngine } from './Audio';
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export interface NavigateResult {
+  text: string;
+  roomChanged: boolean;
+  movementChanged: boolean;
+  transitionOut?: string;
+  transitionIn?: string;
+}
+
 export interface UICallbacks {
-  onNavigate: (dir: Direction) => string;
+  onNavigate: (dir: Direction) => NavigateResult;
   onAct: (action: ActionType, itemId?: string) => string;
   onUseItemOnRoom: (invItemId: string, targetId: string) => string;
   onSave: () => void;
   onPickSide: (side: Side) => void;
+  onPickMode: (mode: Mode) => void;
   onNewGame: () => void;
+}
+
+export function buildModeSelect(container: HTMLElement, callbacks: UICallbacks): void {
+  container.innerHTML = `
+    <div id="side-select">
+      <div class="side-select-content">
+        <h1 class="side-select-title">Escape Game</h1>
+        <p class="side-select-subtitle">Two paths in.</p>
+        <div class="side-select-buttons">
+          <button class="side-btn dreamer-btn" data-mode="solo">
+            <span class="side-btn-icon">○</span>
+            <span class="side-btn-label">Solo</span>
+            <span class="side-btn-desc">Alone in the dark</span>
+          </button>
+          <button class="side-btn reckoner-btn" data-mode="together">
+            <span class="side-btn-icon">◇</span>
+            <span class="side-btn-label">Together</span>
+            <span class="side-btn-desc">Two halves, one mind</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll('.side-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = (btn as HTMLElement).dataset.mode as Mode | undefined;
+      if (mode) callbacks.onPickMode(mode);
+    });
+  });
 }
 
 export function buildSideSelect(container: HTMLElement, callbacks: UICallbacks): void {
@@ -142,7 +189,7 @@ export class GameUI {
     this.snapshot = this.game.getSnapshot();
 
     const layout = document.getElementById('game-layout');
-    if (layout) layout.dataset.side = this.snapshot.side;
+    if (layout) layout.dataset.side = this.snapshot.renderMode;
 
     this.wireEvents();
     this.render();
@@ -150,14 +197,17 @@ export class GameUI {
 
   private wireEvents(): void {
     this.dpadEl.querySelectorAll('.dpad-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const dir = (e.currentTarget as HTMLElement).dataset.dir as Direction | undefined;
         if (!dir) return;
         this.audio.playSfx('footstep');
-        const text = this.callbacks.onNavigate(dir);
+        const result = this.callbacks.onNavigate(dir);
         this.usePending = null;
+        if (result.movementChanged) {
+          await this.showMovementTransition(result.transitionOut, result.transitionIn);
+        }
         this.refreshFromGame();
-        this.showResultText(text);
+        this.showResultText(result.text);
       });
     });
 
@@ -199,6 +249,43 @@ export class GameUI {
         if (!itemId) return;
         this.focusInventoryItem(itemId);
       }
+      if (target.classList.contains('journal-chip')) {
+        this.showJournalViewer();
+      }
+    });
+  }
+
+  private showJournalViewer(): void {
+    const entries = this.snapshot.journal;
+    const overlay = document.createElement('div');
+    overlay.className = 'journal-viewer';
+    const body = entries.length === 0
+      ? `<div class="journal-empty">The journal is open. No entries yet.</div>`
+      : entries.map((e, i) => `
+          <details class="journal-entry"${i === entries.length - 1 ? ' open' : ''}>
+            <summary>${escapeHtml(e.label)}</summary>
+            <div class="journal-body">${escapeHtml(e.body)}</div>
+          </details>
+        `).join('');
+    overlay.innerHTML = `
+      <div class="journal-frame">
+        <div class="journal-header">
+          <span class="journal-title">Journal</span>
+          <button class="journal-close" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="journal-list">${body}</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('visible'));
+
+    const dismiss = () => {
+      overlay.classList.remove('visible');
+      setTimeout(() => overlay.remove(), 250);
+    };
+    overlay.querySelector('.journal-close')!.addEventListener('click', dismiss);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) dismiss();
     });
   }
 
@@ -278,7 +365,14 @@ export class GameUI {
 
   private renderHeader(): void {
     this.headerEl.textContent = this.snapshot.roomName;
-    this.headerSide.textContent = '· ' + (this.snapshot.side === 'dreamer' ? 'Dreamer' : 'Reckoner');
+    const mode = this.snapshot.renderMode;
+    if (mode === 'neutral') {
+      this.headerSide.textContent = '';
+    } else {
+      this.headerSide.textContent = '· ' + (mode === 'dreamer' ? 'Dreamer' : 'Reckoner');
+    }
+    const layout = document.getElementById('game-layout');
+    if (layout) layout.dataset.side = mode;
   }
 
   private renderItemList(): void {
@@ -350,13 +444,17 @@ export class GameUI {
 
   private renderInventory(): void {
     const items = this.snapshot.inventory;
-    if (items.length === 0) {
+    const journalChip = this.snapshot.hasJournal
+      ? `<button class="journal-chip" type="button">📓 Journal</button>`
+      : '';
+    if (items.length === 0 && !this.snapshot.hasJournal) {
       this.inventoryBarEl.innerHTML = '<span class="no-items">empty</span>';
       return;
     }
-    this.inventoryBarEl.innerHTML = items.map(i =>
+    const itemChips = items.map(i =>
       `<button class="inv-chip" data-item-id="${i.id}">${i.label}</button>`
     ).join('');
+    this.inventoryBarEl.innerHTML = journalChip + itemChips;
   }
 
   private showResultText(text: string): void {
@@ -373,5 +471,38 @@ export class GameUI {
   showEpilogue(text: string): void {
     this.textRenderer.clear();
     this.textRenderer.appendHtml(`<div class="epilogue">${text}</div>`);
+  }
+
+  showMovementTransition(outText?: string, inText?: string): Promise<void> {
+    return new Promise(resolve => {
+      const parts = [outText, inText].filter((s): s is string => Boolean(s && s.trim()));
+      if (parts.length === 0) {
+        resolve();
+        return;
+      }
+      const body = parts.join('\n\n· · ·\n\n');
+      const overlay = document.createElement('div');
+      overlay.className = 'movement-transition';
+      overlay.innerHTML = `
+        <div class="transition-text"></div>
+        <div class="transition-hint">tap to continue</div>
+      `;
+      const textEl = overlay.querySelector('.transition-text') as HTMLElement;
+      textEl.textContent = body;
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => overlay.classList.add('visible'));
+
+      let dismissed = false;
+      const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        overlay.classList.remove('visible');
+        setTimeout(() => {
+          overlay.remove();
+          resolve();
+        }, 500);
+      };
+      overlay.addEventListener('click', dismiss);
+    });
   }
 }
