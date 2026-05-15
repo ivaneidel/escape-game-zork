@@ -37,7 +37,7 @@ function decoy(id: string, name: string, examine: string): Item {
 export const Sp02: Chapter = {
   id: 'sp02',
   title: 'The Range',
-  contentVersion: 1,
+  contentVersion: 2,
   actionSet: ['look', 'open', 'examine', 'use', 'note'],
   starts: {
     dreamer: 'tomas-desk-morning',
@@ -245,9 +245,7 @@ The desk is no longer your desk.`,
         entry: `A narrow balcony off the kitchen. The Adriatic light is the wrong shade. The morning has a smell that you recognise without naming.
 
 The flat is behind you. The journal is on the desk. You came out for air. The air is not what you came for.`,
-        look: `The courtyard, four floors down. A dead plant in a pot. A clothesline, empty. A cat on a parapet. The cold morning sea-smell.
-
-The desk is west.`,
+        look: `The courtyard, four floors down. A dead plant in a pot. A clothesline, empty. A cat on a parapet. The cold morning sea-smell.`,
         items: [
           atmoRead(
             'courtyard-below',
@@ -295,12 +293,8 @@ The desk is west.`,
       reckoner: {
         entry: `A small room. A bunk, a footlocker, a desk under the window. The window onto the airfield. Late morning. The smell of warm concrete and aviation fuel.
 
-His hand picks up a pen and puts it down again. The half-written letter on the desk is to his wife. The third paragraph stops mid-sentence.
-
-The mess is south.`,
-        look: `The bunk. The footlocker. The desk under the window. The half-written letter. Nina's drawing taped above the desk. A photograph of Yelena and Nina, frameless. A borrowed paperback on the bunk. A coat on the chair. The flight schedule pinned to the wall.
-
-The mess is south.`,
+His hand picks up a pen and puts it down again. The half-written letter on the desk is to his wife. The third paragraph stops mid-sentence.`,
+        look: `The bunk. The footlocker. The desk under the window. The half-written letter. Nina's drawing taped above the desk. A photograph of Yelena and Nina, frameless. A borrowed paperback on the bunk. A coat on the chair. The flight schedule pinned to the wall.`,
         items: [
           {
             id: 'flight-schedule-1962',
@@ -365,14 +359,14 @@ The pen stopped there. He has not picked it up since.`,
             inventory: { label: '', examine: '' },
             onAction: {
               examine: () => ({
-                text: `A small house. A tall man. A smaller man. A child between them. The same composition as the drawing on the kitchen wall in 1965. Two years younger. The smaller man is not labelled. The child has Nina's face.`,
+                text: `A small house. A tall man. A smaller man. A child between them. The smaller man is not labelled. The child has Nina's face.`,
               }),
             },
           },
           atmoRead(
             'yelena-photo-1962',
             'a photograph',
-            'Frameless, propped against the inkstand. Yelena and Nina, the previous summer. Yelena\'s hair is shorter than it will be in 1965.',
+            'Frameless, propped against the inkstand. Yelena and Nina, the previous summer. Yelena has cut her hair short.',
             `Andrei looks at it for a moment. He does not pick it up. He has been looking at it long enough that it is no longer information.`
           ),
           {
@@ -431,7 +425,7 @@ The pen stopped there. He has not picked it up since.`,
 The room smells of coffee and preserved cabbage. The bulletin board by the door has a fresh notice pinned.`,
         look: `Konstantin and three other pilots at the nearer table. The samovar in the corner. The bulletin board. The window onto the airfield. The corridor door.
 
-Konstantin's notebook is open beside his cup. Quarters are north. The flight-prep room is west.`,
+Konstantin's notebook is open beside his cup.`,
         items: [
           {
             id: 'konstantin-morning',
@@ -476,7 +470,7 @@ He notices Andrei without lifting his head. He smiles half a smile and goes back
                       addJournalEntry: {
                         id: 'k-bird-motif',
                         label: 'A swallow with three lines',
-                        body: `Konstantin's motif. He sketched it in his notebook at breakfast. He has the same enamel pin on the strap of his flight helmet. The shape is the same as the sticker on the dream-capsule panel in 1965. The bird is his.`,
+                        body: `Konstantin's motif. He sketched it in his notebook at breakfast. He has the same enamel pin on the strap of his flight helmet. The same shape — a swallow in profile, three short lines beneath — sat on a panel of a different dream of mine, in a different year. The bird is his. He left it where I would find it.`,
                       },
                     },
                   ],
@@ -527,21 +521,19 @@ He notices Andrei without lifting his head. He smiles half a smile and goes back
 
     Discipline.
     Discretion.
-    Distance.
-
-The same three words from the briefing-room poster in 1965. An earlier card. The same hand of the same authority.`,
+    Distance.`,
               }),
               note: (ctx: ActionContext) => {
                 if (ctx.journal.some(j => j.id === 'three-words-1962')) {
                   return { text: `Already in the journal. The slogan is older than I thought.` };
                 }
                 return {
-                  text: `You record it. The same three words I noted in 1965, pinned on a bulletin board three years earlier. It is older than the briefing room. It is older than the closed city.`,
+                  text: `You record it. The same three lines you have read before, in a different room, with a different smell of cabbage to it.`,
                   effects: [{
                     addJournalEntry: {
                       id: 'three-words-1962',
                       label: 'Discipline. Discretion. Distance — earlier.',
-                      body: `Pinned on the bulletin board in the officers' mess at the range, 14 August 1962. The same three words I noted in the briefing anteroom in 1965. The slogan is older than the closed city. It belongs to the institution, not to one programme.`,
+                      body: `Pinned on the bulletin board in the officers' mess at the range, 14 August 1962. You have seen the same three lines before, in another place I have walked through with him. The slogan is older than I had assumed. It belongs to the institution.`,
                     },
                   }],
                 };
@@ -551,7 +543,7 @@ The same three words from the briefing-room poster in 1965. An earlier card. The
           atmoRead(
             'samovar-mess-morning',
             'the samovar',
-            'In the corner. Tarnished brass. The same shape as the one in the briefing room in 1965.',
+            'In the corner. Tarnished brass. A shape you would know anywhere.',
             `Andrei does not look at it twice. You do.`
           ),
           atmoRead(
@@ -574,9 +566,7 @@ The same three words from the briefing-room poster in 1965. An earlier card. The
         entry: `A long narrow room. Pressure suits on a rack. Helmets on hooks. A bench. The flight surgeon\'s clipboard hung on a nail by the door.
 
 Andrei\'s helmet is on the rack beside Konstantin\'s. The two helmets are mirrored.`,
-        look: `The clipboard on the wall. Andrei's helmet on the rack. Konstantin's helmet beside it, with the small pin on the strap. The pressure-suit rack. The bench. The equipment log.
-
-The mess is east.`,
+        look: `The clipboard on the wall. Andrei's helmet on the rack. Konstantin's helmet beside it, with the small pin on the strap. The pressure-suit rack. The bench. The equipment log.`,
         items: [
           {
             id: 'reznik-clipboard-m1',
@@ -589,21 +579,21 @@ The mess is east.`,
               examine: () => ({
                 text: `Andrei's clearance for today is signed off cleanly. Pavlovich, K. — cleared for 06:00 tomorrow.
 
-In the right margin, against Pavlovich's line, a small mark in pencil. A circle around a numeric value in the heart-rate-resting column. The slope of the circle, the pressure of the lead — the same hand that pencilled the margin annotation on Andrei's medical-fitness report in 1965.`,
+In the right margin, against Pavlovich's line, a small mark in pencil. A circle around a numeric value in the heart-rate-resting column. The slope of the circle is steady. The hand is careful.`,
               }),
               note: (ctx: ActionContext) => {
                 if (ctx.journal.some(j => j.id === 'reznik-hand')) {
                   return { text: `Already in the journal. Reznik's hand on Kostya's clearance.` };
                 }
                 return {
-                  text: `You write it down. Reznik's hand. The same pencil-slope. The same small circle around a value. He marked it on Kostya in 1962. He will mark it on Andrei in 1965.`,
+                  text: `You write it down. Reznik's hand. The small circle, the careful pressure. You have seen a circle like this one before, on a different clearance.`,
                   effects: [
                     { setFlags: { 'm1.surgeon-noted': true } },
                     {
                       addJournalEntry: {
                         id: 'reznik-hand',
                         label: "The flight surgeon's hand",
-                        body: `Major Reznik annotates clearances with a small pencilled circle around a numeric value. The same mark appears on Konstantin Pavlovich's pre-flight clearance, 14 August 1962, and on Andrei Voronin's medical-fitness report, 1965. The hand is the same. The mark survives across three years.`,
+                        body: `Major Reznik annotates pre-flight clearances with a small pencilled circle around a heart-rate value. The mark is the same one I have seen on a different clearance, in a different year. He has been doing this for a long time.`,
                       },
                     },
                   ],
@@ -611,12 +601,6 @@ In the right margin, against Pavlovich's line, a small mark in pencil. A circle 
               },
             },
           },
-          atmoRead(
-            'andrei-helmet-rack',
-            "Andrei's helmet on the rack",
-            "On a hook. Visor scratched on the left. The strap has a small mark where his fingers settle.",
-            `He looks at it. He does not yet pick it up.`
-          ),
           {
             id: 'k-helmet-rack',
             name: "Konstantin's helmet",
@@ -626,7 +610,7 @@ In the right margin, against Pavlovich's line, a small mark in pencil. A circle 
             inventory: { label: '', examine: '' },
             onAction: {
               examine: () => ({
-                text: `Andrei lifts the strap and turns the pin in the light. Enamel, dark blue, polished by Kostya's thumb. The same shape as the sketch in the notebook in the mess.`,
+                text: `Andrei lifts the strap and turns the pin in the light. Enamel, dark blue, polished by Kostya's thumb. The same shape as the sketch in his notebook.`,
               }),
               note: (ctx: ActionContext) => {
                 if (ctx.journal.some(j => j.id === 'k-bird-motif')) {
@@ -636,14 +620,14 @@ In the right margin, against Pavlovich's line, a small mark in pencil. A circle 
                   };
                 }
                 return {
-                  text: `You record it. The pin on Kostya\'s helmet strap. A swallow with three lines beneath. The same shape as the sketch in his notebook. The same shape as the sticker on the dream-capsule panel in 1965.`,
+                  text: `You record it. The pin on Kostya's helmet strap. A swallow with three lines beneath. The same shape as the sketch in his notebook. You have seen this shape somewhere else before, in a place that was not this room.`,
                   effects: [
                     { setFlags: { 'm1.bird-noted': true } },
                     {
                       addJournalEntry: {
                         id: 'k-bird-motif',
                         label: 'A swallow with three lines',
-                        body: `Konstantin's motif. Sketched in his notebook at breakfast. Enamel pin on the strap of his flight helmet. The shape is the same as the sticker on the dream-capsule panel in 1965. The bird is his.`,
+                        body: `Konstantin's motif. Sketched in his notebook at breakfast. Enamel pin on the strap of his flight helmet. The shape is the same as a sticker I saw on a panel in another dream. The bird is his.`,
                       },
                     },
                   ],
@@ -664,14 +648,14 @@ In the right margin, against Pavlovich's line, a small mark in pencil. A circle 
           ),
           {
             id: 'andrei-helmet',
-            name: "Andrei's helmet (USE to suit up)",
-            examine: `The helmet on the rack, in your hand. The strap loose. The visor scratched. He is about to put it on. He has not yet.`,
+            name: "Andrei's helmet",
+            examine: `On the hook. Visor scratched on the left. The strap has a small mark where his fingers settle. He could put it on.`,
             actions: ['examine', 'use'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
               examine: () => ({
-                text: `He lifts it off the hook. He weighs it in both hands. He sets it down again.`,
+                text: `He lifts it off the hook. He weighs it in both hands. The strap is loose. The visor is scratched the way it has been scratched since the second flight. He sets it down again — not yet.`,
               }),
               use: (ctx: ActionContext) => {
                 if (!ctx.flags['m1.schedule-read']) {
@@ -714,20 +698,18 @@ The dream takes over with the sun on his visor.`,
 A small photograph is clipped to the panel — Yelena and Nina, summer 1961. The radio carries Konstantin's voice from the ground, running the morning's other check.
 
 Higher is north.`,
-        look: `The instrument panel. The radio. The visor. The canopy. The small clipped photograph. Andrei\'s thigh pocket — there is something folded in it.
-
-Higher is north.`,
+        look: `The instrument panel. The radio. The visor. The canopy. The small clipped photograph. A folded slip in Andrei's thigh pocket.`,
         items: [
           {
             id: 'instrument-panel-1962',
             name: 'the instrument panel',
-            examine: `Dials in Cyrillic. An altimeter climbing. An attitude indicator alive. The panel has no sticker — not yet. The metal is bare where one will eventually be.`,
+            examine: `Dials in Cyrillic. An altimeter climbing. An attitude indicator alive. The metal of the panel is bare and clean.`,
             actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
               examine: () => ({
-                text: `The panel is bare. The sticker that will eventually live here, three years from now, is not here yet. The metal is clean.`,
+                text: `The panel is bare. The metal is clean. Andrei has not yet decided what, if anything, to put on it.`,
               }),
             },
           },
@@ -756,46 +738,32 @@ Higher is north.`,
             `He glances at it. He glances away. He does not let himself look at it during the climb.`
           ),
           {
-            id: 'andrei-pocket-cockpit',
-            name: "your thigh pocket",
-            examine: `Something paper. Folded. Small. You did not put it there.`,
-            actions: ['examine'],
-            takeable: false,
-            inventory: { label: '', examine: '' },
-            onAction: {
-              examine: (ctx: ActionContext) => {
-                if (ctx.flags['m2.pocket-opened']) {
-                  return { text: `The note is unfolded now. It is on the panel, weighted by the stick base. You have read it.` };
-                }
-                return {
-                  text: `Andrei's fingers find the paper. He unfolds it one-handed, keeping the other hand on the stick.
-
-A slip torn from the back of something. Konstantin's hand, in pencil.
-
-The note is on the panel now. You can examine it.`,
-                  effects: [{ setFlags: { 'm2.pocket-opened': true } }],
-                };
-              },
-            },
-          },
-          {
             id: 'k-folded-note',
-            name: "Konstantin's note",
-            examine: `A slip of paper. The writing is K.\'s pencil-hand, slightly hurried. One sentence on the front. A small drawing on the back.`,
+            name: "a folded slip of paper",
+            examine: `Something paper, folded, in your thigh pocket. You did not put it there.`,
             actions: ['examine', 'note'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
               examine: (ctx: ActionContext) => {
-                if (!ctx.flags['m2.pocket-opened']) {
-                  return { text: `The note is folded in your pocket. You have not unfolded it yet.` };
-                }
-                return {
-                  text: `Front, in pencil:
+                if (ctx.flags['m2.pocket-opened']) {
+                  return {
+                    text: `Front, in pencil:
 
     If you come back, tell me what it sounded like.
 
-On the back, smaller than thumb-print size: a swallow in profile, three short lines beneath. His mark.`,
+On the back: a swallow in profile, three short lines beneath. His mark.`,
+                  };
+                }
+                return {
+                  text: `Andrei's fingers find the paper. He unfolds it one-handed, the other hand on the stick.
+
+A slip torn from the back of something. Konstantin's hand, in pencil:
+
+    If you come back, tell me what it sounded like.
+
+On the back, smaller than a thumbprint: a swallow in profile, three short lines beneath. His mark.`,
+                  effects: [{ setFlags: { 'm2.pocket-opened': true } }],
                 };
               },
               note: (ctx: ActionContext) => {
@@ -811,14 +779,14 @@ On the back, smaller than thumb-print size: a swallow in profile, three short li
 Front: "If you come back, tell me what it sounded like."
 Back: the swallow with three lines.
 
-He wants to know what the air sounded like up there. He did not say "what it looked like." He said "what it sounded like."`,
+He did not say "what it looked like." He said "what it sounded like."`,
                   effects: [
                     { setFlags: { 'm2.note-noted': true } },
                     {
                       addJournalEntry: {
                         id: 'k-folded-note',
                         label: 'If you come back, tell me what it sounded like.',
-                        body: `Konstantin's note. Tucked into Andrei's thigh pocket before the flight, without telling him. He asked Andrei to bring back not the look of altitude but the sound of it. On the back of the note, his mark: the swallow with three lines. Why the sound. Why not the look.`,
+                        body: `Konstantin's note. Tucked into Andrei's thigh pocket before the flight, without telling him. He asked for the sound of altitude, not the look. On the back: the swallow with three lines.`,
                       },
                     },
                   ],
@@ -968,7 +936,7 @@ The quarters are north.`,
               examine: () => ({
                 text: `He raises the glass an inch higher. The room raises theirs. He says something Andrei half-hears about the air being honest, about tomorrow being short. He laughs. The room laughs with him.
 
-This is the photograph. This is what you will keep face-down on your desk three years from now.`,
+You have a sense, watching, that this is the moment Sasha is about to photograph.`,
               }),
             },
           },
@@ -981,7 +949,7 @@ This is the photograph. This is what you will keep face-down on your desk three 
           atmoRead(
             'samovar-mess-evening',
             'the samovar',
-            'In the corner. Tarnished brass. The same shape as the one in the briefing room in 1965.',
+            'In the corner. Tarnished brass. A shape you would know anywhere.',
             `The samovar does not change. The men do.`
           ),
           {
@@ -1025,7 +993,7 @@ This is the photograph. This is what you will keep face-down on your desk three 
                   return { text: `The flash has already fired. The room is settling back into itself.` };
                 }
                 return {
-                  text: `Sasha presses the shutter. The flash fires. The room whites out for a beat. Konstantin is still mid-laugh; you are at his shoulder; Yevgenny is on his left, Mikhail and Pyotr to your right. The shape of the photograph you will keep face-down on your desk in 1965 is fixed in this beat.
+                  text: `Sasha presses the shutter. The flash fires. The room whites out for a beat. Konstantin is still mid-laugh; you are at his shoulder; Yevgenny is on his left, Mikhail and Pyotr to your right. The shape of this photograph is fixed in that beat.
 
 Then the room comes back. The laughter continues. Sasha goes on along the wall.`,
                   effects: [
@@ -1034,7 +1002,7 @@ Then the room comes back. The laughter continues. Sasha goes on along the wall.`
                       addJournalEntry: {
                         id: 'the-photograph-1962',
                         label: 'The photograph: 14 August 1962, evening mess',
-                        body: `Cpl. Sasha took it tonight. Konstantin mid-laugh at the head of the table, glass in hand. Andrei at his shoulder. Yevgenny on Kostya's left; Mikhail and Pyotr at Andrei's right. The same photograph Andrei will keep face-down on his desk in spring 1965, pencilled "K., 1962" on the back. I was here when it was taken. I know who K. is now. I do not know what happened to him.`,
+                        body: `Cpl. Sasha took it tonight. Konstantin mid-laugh at the head of the table, glass in hand. Andrei at his shoulder. Yevgenny on Kostya's left; Mikhail and Pyotr at Andrei's right. I was here when it was taken. I know who K. is now. I do not know what happens to him.`,
                       },
                     },
                   ],
@@ -1068,9 +1036,7 @@ Then the room comes back. The laughter continues. Sasha goes on along the wall.`
         entry: `Back at quarters. The lamp on. The day has been a long day in a long week. Andrei sits on the bunk with the borrowed paperback in his hands.
 
 A new letter from Yelena waits on the desk — delivered while he was in the mess.`,
-        look: `The borrowed paperback. Yelena's letter on the desk. The lamp. The half-written letter still mid-sentence. Andrei's own journal, blank.
-
-The mess is south.`,
+        look: `The borrowed paperback. Yelena's letter on the desk. The lamp. The half-written letter still mid-sentence. Andrei's own journal, blank.`,
         items: [
           {
             id: 'yelena-letter-bunk',
@@ -1083,21 +1049,21 @@ The mess is south.`,
               examine: () => ({
                 text: `She is well. Nina is well. Nina has been humming a song she says Kostya taught her last spring on a visit. Yelena spells the syllables out as Nina sings them, three short, three short, three short. The rhythm is on the page.
 
-The rhythm is the same as the briefing callsign you wrote down in 1965.`,
+You know that rhythm.`,
               }),
               note: (ctx: ActionContext) => {
                 if (ctx.journal.some(j => j.id === 'nina-song-by-letter')) {
                   return { text: `Already in the journal. Yelena spelled the song out in syllables.` };
                 }
                 return {
-                  text: `You write it down. Yelena's letter, three pages, the second-page paragraph: Nina humming the song Kostya taught her. The rhythm spelled out in syllables. The same three beats as the briefing callsign, the masked envelope, Nina's song in 1965. The rhythm goes back at least to 1962.`,
+                  text: `You write it down. Yelena's letter, three pages, the second-page paragraph: Nina humming the song Kostya taught her. Three short, three short, three short. The same rhythm, again.`,
                   effects: [
                     { setFlags: { 'm3.letter-noted': true } },
                     {
                       addJournalEntry: {
                         id: 'nina-song-by-letter',
-                        label: "Yelena: Nina hums Kostya's song (1962)",
-                        body: `Yelena's letter to Andrei, 14 August 1962. Nina has been humming a song "Kostya taught her last spring." Yelena spells the syllables: three short, three short, three short. Same rhythm I noted from Nina in 1965, from the masked envelope, from the briefing callsign. The song goes back at least three years.`,
+                        label: "Yelena: Nina hums Kostya's song",
+                        body: `Yelena's letter to Andrei, 14 August 1962. Nina has been humming a song "Kostya taught her last spring." Yelena spells the syllables: three short, three short, three short. The same rhythm I have written down twice already. It runs further back than I thought.`,
                       },
                     },
                   ],
@@ -1175,7 +1141,7 @@ The dawn comes very soon.`,
             'lamp-bunk',
             'the table lamp',
             'On the desk. Warm under his hand. The bulb keeps the room distinct from the corridor.',
-            `He will turn it off in a moment. The lamp is not the trigger tonight.`
+            `He will turn it off when the book closes.`
           ),
           atmoRead(
             'half-written-letter-bunk',
@@ -1207,9 +1173,7 @@ The dawn comes very soon.`,
         entry: `The flight-prep room. Five-thirty in the morning. Half-light through the high window. Konstantin alone, fastening the inner harness without watching his hands.
 
 Andrei is not here in his body. The dream is here without him.`,
-        look: `Konstantin suiting up. His helmet on the bench. His thigh pocket. Reznik's clipboard on the wall.
-
-The tarmac is east.`,
+        look: `Konstantin suiting up. His helmet on the bench. His thigh pocket. Reznik's clipboard on the wall.`,
         items: [
           {
             id: 'konstantin-prep-m4',
@@ -1245,7 +1209,7 @@ The tarmac is east.`,
                     addJournalEntry: {
                       id: 'k-bird-motif',
                       label: 'A swallow with three lines',
-                      body: `Konstantin's motif. Enamel pin on the strap of his flight helmet. The shape is the same as the sticker on the dream-capsule panel in 1965. The bird is his.`,
+                      body: `Konstantin's motif. He sketched it in his notebook at breakfast. He has the same enamel pin on the strap of his flight helmet. The same shape — a swallow in profile, three short lines beneath — sat on a panel of a different dream of mine, in a different year. The bird is his. He left it where I would find it.`,
                     },
                   }],
                 };
@@ -1301,9 +1265,7 @@ The journal already has the original mark. You have the before-state. There is n
         entry: `Outside. The sky just beginning to lighten. Tarmac under his boots. The runway lights flickering off as he passes each one.
 
 A junior officer at the hangar door is watching him cross.`,
-        look: `Konstantin walking. The Strela-3 aircraft, half-hidden by a service van. The wind sock. The watching pilot at the hangar door. A faint star still in the lightening sky.
-
-The prep room is west. East: an aircraft you can almost see.`,
+        look: `Konstantin walking. The Strela-3 aircraft, half-hidden by a service van. The wind sock. The watching officer at the hangar door. A faint star still in the lightening sky.`,
         items: [
           {
             id: 'konstantin-walking',
@@ -1338,8 +1300,8 @@ The prep room is west. East: an aircraft you can almost see.`,
           ),
           {
             id: 'drozdov-watching',
-            name: 'a watching pilot',
-            examine: `A lone officer at the hangar door, hands in his pockets, watching Konstantin cross the tarmac. Late twenties, the chin already set. Junior uniform. You do not know him.`,
+            name: 'a watching officer',
+            examine: `A lone officer at the hangar door, hands in his pockets, watching Konstantin cross the tarmac. Late twenties, the chin already set. A junior uniform.`,
             actions: ['examine', 'note'],
             takeable: false,
             inventory: { label: '', examine: '' },
@@ -1349,19 +1311,19 @@ The prep room is west. East: an aircraft you can almost see.`,
               }),
               note: (ctx: ActionContext) => {
                 if (ctx.journal.some(j => j.id === 'drozdov-at-range')) {
-                  return { text: `Already in the journal. The watching lieutenant.` };
+                  return { text: `Already in the journal. The watching officer.` };
                 }
                 return {
                   text: `You record him. The set of the chin. The hands in the pockets. The way of watching.
 
-Late twenties in 1962. He will be Major Drozdov by the time Andrei meets him in 1965. He is watching the wrong way for someone who is just curious. He never mentions this morning, in 1965. He never mentions Kostya at all.`,
+You have seen that chin before. The rank was different. The way of watching was not.`,
                   effects: [
                     { setFlags: { 'm4.drozdov-noted': true } },
                     {
                       addJournalEntry: {
                         id: 'drozdov-at-range',
-                        label: 'Drozdov at the hangar door (1962)',
-                        body: `A junior officer in a junior uniform watching Konstantin cross the tarmac at dawn, 15 August 1962. Late twenties, set chin. The same man who will be Major Drozdov in 1965 — Andrei's superior in the closed city. He was at the range. He watched K. cross. He never spoke of it.`,
+                        label: 'A watching officer at the hangar door',
+                        body: `Pre-dawn, 15 August 1962. A junior officer in a junior uniform watching Konstantin cross the tarmac toward Strela-3. Late twenties. The chin is one I have written about already, in another year, at a senior rank. He never mentioned this morning.`,
                       },
                     },
                   ],
@@ -1373,7 +1335,7 @@ Late twenties in 1962. He will be Major Drozdov by the time Andrei meets him in 
             'dawn-star',
             'a star',
             'Still in the sky, very faint, where the dawn has not yet erased it.',
-            `The same star as the cockpit yesterday. The dream is reusing it. The dream wants you to notice.`
+            `He looks at it. He looked at it yesterday too, from a different altitude. It is the same star.`
           ),
         ],
       },
@@ -1389,9 +1351,7 @@ Late twenties in 1962. He will be Major Drozdov by the time Andrei meets him in 
         entry: `Inside a cockpit. Not yours, not his — not Strela-3, not Strela-7. The seat is warm. The harness is unbuckled, hanging loose. The canopy is half-open. The sky outside is full daylight already, somehow.
 
 The dream-logic is at its loosest here.`,
-        look: `The warm seat. K.\'s helmet on the cockpit floor. The radio. The half-open canopy. The sky outside, daylight where there should be dawn. The star: gone.
-
-The tarmac is west.`,
+        look: `The warm seat. K.\'s helmet on the cockpit floor. The radio. The half-open canopy. The sky outside, daylight where there should be dawn. The star: gone.`,
         items: [
           atmoRead(
             'warm-seat',
@@ -1401,7 +1361,7 @@ The tarmac is west.`,
           ),
           {
             id: 'k-helmet-floor',
-            name: "Konstantin's helmet (on the floor)",
+            name: "Konstantin's helmet",
             examine: `On the cockpit floor, not strapped to the panel, not on a rack. The bird pin still on the strap.`,
             actions: ['examine', 'note'],
             takeable: false,
@@ -1491,9 +1451,7 @@ The dream lets him go in pieces.`,
         entry: `Your desk. Evening already. You have been writing for hours without registering them. The journal is full of August 1962. The pages are warm with your hand.
 
 The unopened letter from Maria is still where you left it this morning.`,
-        look: `The journal. The typewriter, still mid-paragraph. The unopened letter from Maria. The window onto the courtyard.
-
-The kitchen is east.`,
+        look: `The journal. The typewriter, still mid-paragraph. The unopened letter from Maria. The window onto the courtyard.`,
         items: [
           {
             id: 'journal-coda-2',
@@ -1562,9 +1520,7 @@ The journal on your desk is fuller than it was when you sat down this morning. T
         entry: `Your kitchen. The kettle is warm — you made tea without registering that you did. The radio is silent. The window opposite is grey.
 
 Maria's letter is in your hand. You open it.`,
-        look: `The kettle. The silent radio. The window. Maria's letter, opened.
-
-The desk is west.`,
+        look: `The kettle. The silent radio. The window. Maria's letter, opened.`,
         items: [
           atmoRead(
             'kettle-coda-2',

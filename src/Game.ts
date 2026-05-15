@@ -154,7 +154,7 @@ export class Game {
       previousMovement: this.getCurrentMovement(),
       currentMovement: this.getCurrentMovement(),
     };
-    if (!exit) return { text: this.getCantGoText(dir), ...noChange };
+    if (!exit) return { text: this.getCantGoText(), ...noChange };
     if (exit.blockedBy && !this.state.flags[exit.blockedBy]) {
       return { text: exit.blocked ?? 'The way is blocked.', ...noChange };
     }
@@ -196,14 +196,8 @@ export class Game {
     };
   }
 
-  private getCantGoText(dir: Direction): string {
-    const map: Record<Direction, string> = {
-      north: 'a solid wall',
-      south: 'a solid wall',
-      east: 'a solid wall',
-      west: 'a solid wall',
-    };
-    return `You can't go that way. There's ${map[dir]}.`;
+  private getCantGoText(): string {
+    return "You can't go that way.";
   }
 
   act(action: ActionType, itemId?: string): {

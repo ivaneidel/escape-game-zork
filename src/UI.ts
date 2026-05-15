@@ -131,7 +131,7 @@ function buildLayout(): { app: HTMLElement; header: HTMLElement; textPane: HTMLE
         <div id="action-bar"></div>
       </div>
       <div id="inventory-bar">
-        <span class="inv-label">🎒</span>
+        <span class="inv-label" id="inv-label">🎒</span>
         <div id="inv-items"></div>
       </div>
     </div>
@@ -203,6 +203,13 @@ export class GameUI {
 
     const layout = document.getElementById('game-layout');
     if (layout) layout.dataset.side = this.snapshot.renderMode;
+
+    // SP carries only the journal — the backpack label implies an inventory
+    // the player never accumulates. Hide it in solo mode.
+    if (this.game.mode === 'solo') {
+      const invLabel = document.getElementById('inv-label');
+      if (invLabel) invLabel.style.display = 'none';
+    }
 
     this.wireEvents();
     this.render();
@@ -430,6 +437,9 @@ export class GameUI {
       }
       this.itemOrderCache = { roomId, order: shuffled };
       this.lastFocusedItemId = null;
+      // Reset horizontal scroll so the new room's chips start at the left
+      // edge instead of inheriting the previous room's scroll offset.
+      this.itemListEl.scrollLeft = 0;
     }
     const order = this.itemOrderCache.order;
     const newItems = items.filter(i => !order.includes(i.id));
@@ -598,6 +608,10 @@ export class GameUI {
     if (this.epilogueShown || !this.snapshot.completed) return;
     this.epilogueShown = true;
     const epilogue = this.game.chapter.epilogue ?? '';
+    // Silence is part of the ending. Carrying ambient under the
+    // chapter-complete card breaks the frame, so cut it the moment we know
+    // the chapter is over.
+    this.audio.stopAmbient();
     // Same beat as movement crossings: let the closing text settle, then
     // wait for an explicit tap before the chapter-complete overlay arrives.
     // Lock input so stray taps on the now-stale layout don't fire actions.
