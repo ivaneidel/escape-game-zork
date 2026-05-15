@@ -5,12 +5,13 @@ import { GameUI, buildSideSelect, buildModeSelect, type UICallbacks } from './UI
 import { Ch01 } from './chapters/Ch01';
 import { Sp01 } from './chapters/Sp01';
 import { Sp02 } from './chapters/Sp02';
+import { Sp03 } from './chapters/Sp03';
 import './style.css';
 
 const CHAPTERS_TOGETHER = { ch01: Ch01 };
 // Solo chapters in release order. Walked by the picker and by the
 // chapter-complete "Continue" button to determine the successor.
-const SOLO_ORDER: Chapter[] = [Sp01, Sp02];
+const SOLO_ORDER: Chapter[] = [Sp01, Sp02, Sp03];
 
 
 function getNextSoloChapter(chapterId: string): Chapter | null {
