@@ -35,6 +35,10 @@ export interface UICallbacks {
   onPickMode: (mode: Mode) => void;
   onNewGame: () => void;
   onChapterComplete: () => void;
+  // Fired after a movement-change overlay has been dismissed and the UI has
+  // swapped in the new room's text/font. main.ts uses this to kick the new
+  // ambient (the audio change is deferred until the player taps through).
+  onMovementApplied?: () => void;
 }
 
 export function buildModeSelect(container: HTMLElement, callbacks: UICallbacks): void {
@@ -169,6 +173,7 @@ export class GameUI {
   private focus: FocusState = { itemId: null, isInventory: false };
   private usePending: string | null = null;
   private epilogueShown = false;
+  private inputLocked = false;
   private itemOrderCache: { roomId: string; order: string[] } | null = null;
   private lastFocusedItemId: string | null = null;
 
@@ -202,18 +207,17 @@ export class GameUI {
   private wireEvents(): void {
     this.dpadEl.querySelectorAll('.dpad-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
+        if (this.inputLocked) return;
         const dir = (e.currentTarget as HTMLElement).dataset.dir as Direction | undefined;
         if (!dir) return;
         this.audio.playSfx('footstep');
         const result = this.callbacks.onNavigate(dir);
         this.usePending = null;
-        // Navigation room change: render the new room's text first, then
-        // (if the move crossed a movement boundary) fire the transition.
-        this.refreshFromGame();
-        await this.showResultText(result.text);
         if (result.movementChanged) {
-          await this.showMovementTransition(result.transitionOut, result.transitionIn);
+          await this.runMovementSequence(result.text, result.transitionOut, result.transitionIn);
+        } else {
           this.refreshFromGame();
+          await this.showResultText(result.text);
         }
         this.maybeShowEpilogue();
       });
@@ -242,17 +246,18 @@ export class GameUI {
     document.addEventListener('click', async (e) => {
       const target = e.target as HTMLElement;
       if (target.classList.contains('item-chip')) {
+        if (this.inputLocked) return;
         const itemId = target.dataset.itemId;
         if (!itemId) return;
         if (this.usePending) {
           const result = this.callbacks.onUseItemOnRoom(this.usePending, itemId);
           this.usePending = null;
-          this.refreshFromGame();
-          await this.showResultText(result.text);
           if (result.movementChanged) {
-            await this.showMovementTransition(result.transitionOut, result.transitionIn);
+            await this.runMovementSequence(result.text, result.transitionOut, result.transitionIn);
             this.focus = { itemId: null, isInventory: false };
+          } else {
             this.refreshFromGame();
+            await this.showResultText(result.text);
           }
           this.maybeShowEpilogue();
           return;
@@ -260,11 +265,13 @@ export class GameUI {
         this.focusItem(itemId);
       }
       if (target.classList.contains('inv-chip')) {
+        if (this.inputLocked) return;
         const itemId = target.dataset.itemId;
         if (!itemId) return;
         this.focusInventoryItem(itemId);
       }
       if (target.classList.contains('journal-chip')) {
+        if (this.inputLocked) return;
         this.showJournalViewer();
       }
     });
@@ -325,15 +332,15 @@ export class GameUI {
 
     const itemId = this.focus.itemId ?? undefined;
     const result = this.callbacks.onAct(action, itemId);
-    // Show the action's result text first, fully, before any overlay fires.
-    // The transition or chapter-complete is the consequence; the text is the
-    // cause. Player gets to read the cause.
-    this.refreshFromGame();
-    await this.showResultText(result.text);
     if (result.movementChanged) {
-      await this.showMovementTransition(result.transitionOut, result.transitionIn);
+      // Keep the old room's font/items on screen until the player taps
+      // through the overlay. The transition is supposed to feel like a
+      // crossing, not a swap.
+      await this.runMovementSequence(result.text, result.transitionOut, result.transitionIn);
       this.focus = { itemId: null, isInventory: false };
+    } else {
       this.refreshFromGame();
+      await this.showResultText(result.text);
     }
     this.maybeShowEpilogue();
 
@@ -511,6 +518,27 @@ export class GameUI {
       `<button class="inv-chip" data-item-id="${i.id}">${i.label}</button>`
     ).join('');
     this.inventoryBarEl.innerHTML = journalChip + itemChips;
+  }
+
+  private setInputLocked(locked: boolean): void {
+    this.inputLocked = locked;
+    const layout = document.getElementById('game-layout');
+    if (layout) layout.classList.toggle('input-locked', locked);
+  }
+
+  // Movement-crossing sequence. Locks input up front, lets the current text
+  // finish, fades in the overlay, waits for the tap, then clears the pane and
+  // swaps font/items/audio so the new movement only "arrives" after the player
+  // has chosen to step through.
+  private async runMovementSequence(resultText: string, transitionOut?: string, transitionIn?: string): Promise<void> {
+    this.setInputLocked(true);
+    await this.showResultText(resultText);
+    await this.showMovementTransition(transitionOut, transitionIn);
+    this.textRenderer.clear();
+    this.refreshFromGame();
+    this.callbacks.onMovementApplied?.();
+    await this.showResultText(this.snapshot.description);
+    this.setInputLocked(false);
   }
 
   private async showResultText(text: string): Promise<void> {

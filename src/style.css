@@ -403,6 +403,17 @@ html, body {
   border-top: 1px solid var(--border);
 }
 
+/* Block input on the in-game controls while a movement crossing is in
+   flight. Overlays (transition, journal) live outside #game-layout and remain
+   tappable. */
+#game-layout.input-locked #dpad,
+#game-layout.input-locked #action-bar,
+#game-layout.input-locked #item-list,
+#game-layout.input-locked #inventory-bar,
+#game-layout.input-locked #header {
+  pointer-events: none;
+}
+
 /* ─── Movement transition overlay ─── */
 
 .movement-transition {

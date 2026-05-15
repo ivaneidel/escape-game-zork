@@ -43,7 +43,7 @@ function decoy(id: string, name: string, examine: string): Item {
 export const Sp01: Chapter = {
   id: 'sp01',
   title: 'First Light',
-  contentVersion: 4,
+  contentVersion: 5,
   actionSet: ['look', 'open', 'examine', 'use', 'note'],
   starts: {
     dreamer: 'tomas-desk-prologue',
@@ -155,9 +155,17 @@ The lamp is warm. The kitchen is east.`,
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({
-                text: `You read back over the last entries. Most of them are short. One of them ends, mid-sentence: "I don't know who he is." You read it twice. The window's reflection is yours. So far.`,
-              }),
+              examine: (ctx: ActionContext) => {
+                if (ctx.flags['prologue.journal-read']) {
+                  return {
+                    text: `The unfinished sentence is still there. "I don't know who he is." You don't, either.`,
+                  };
+                }
+                return {
+                  text: `You read back over the last entries. Most of them are short. One of them ends, mid-sentence: "I don't know who he is." You read it twice. The window's reflection is yours. So far.`,
+                  effects: [{ setFlags: { 'prologue.journal-read': true } }],
+                };
+              },
               note: () => ({
                 text: `You have nothing new to write yet. The page is waiting.`,
               }),
@@ -177,9 +185,17 @@ The lamp is warm. The kitchen is east.`,
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({
-                text: `You watch the lit window. Whoever lives there has not come into view in six weeks. Tonight is no exception.`,
-              }),
+              examine: (ctx: ActionContext) => {
+                if (ctx.flags['prologue.window-watched']) {
+                  return {
+                    text: `The curtain stirs once and is still. Whoever they are, they are not for you tonight.`,
+                  };
+                }
+                return {
+                  text: `You watch the lit window. Whoever lives there has not come into view in six weeks. Tonight is no exception.`,
+                  effects: [{ setFlags: { 'prologue.window-watched': true } }],
+                };
+              },
             },
           },
           {
@@ -193,6 +209,15 @@ The lamp is warm. The kitchen is east.`,
               use: (ctx: ActionContext) => {
                 if (ctx.flags['prologue.lamp-off']) {
                   return { text: `The lamp is already off. The room remains dark.` };
+                }
+                // Three small acts of letting-go before sleep will take him.
+                // Each gate nudges toward the next thing rather than naming it.
+                if (
+                  !ctx.flags['prologue.journal-read'] ||
+                  !ctx.flags['prologue.window-watched'] ||
+                  !ctx.flags['prologue.letter-read']
+                ) {
+                  return { text: `Your hand is on the switch. Not yet. There are still things to do here.` };
                 }
                 return {
                   text: `You turn the lamp off.
@@ -252,12 +277,27 @@ The desk is west.`,
             'Folded once, on the table. The neighbour\'s small careful hand.',
             `"Brought your mail up. Come down for coffee sometime. — Signora R." You will not. You have not in eleven years.`
           ),
-          atmoRead(
-            'sister-letter',
-            "Maria's letter",
-            'From your sister, one city over. Two pages, both sides.',
-            `She is planning to visit in May. She has stopped asking when you will visit her. You read it once already. The paragraph about her son being well is the only one that lands.`
-          ),
+          {
+            id: 'sister-letter',
+            name: "Maria's letter",
+            examine: 'From your sister, one city over. Two pages, both sides.',
+            actions: ['examine'],
+            takeable: false,
+            inventory: { label: '', examine: '' },
+            onAction: {
+              examine: (ctx: ActionContext) => {
+                if (ctx.flags['prologue.letter-read']) {
+                  return {
+                    text: `Two pages, both sides. The paragraph about her son being well is still the only one that lands.`,
+                  };
+                }
+                return {
+                  text: `She is planning to visit in May. She has stopped asking when you will visit her. You read it once already. The paragraph about her son being well is the only one that lands.`,
+                  effects: [{ setFlags: { 'prologue.letter-read': true } }],
+                };
+              },
+            },
+          },
           atmoRead(
             'kitchen-radio-prologue',
             'the radio',

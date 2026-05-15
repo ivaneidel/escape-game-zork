@@ -169,13 +169,20 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
     // Audio blocked by browser — game still works
   });
 
+  // On a movement crossing the audio change is held back until the UI signals
+  // that the player has tapped through the transition overlay. Plain
+  // room-to-room moves (same movement) still flip ambient immediately.
+  const applyAmbient = () => {
+    audio.setAmbient(game.getPerspective()?.ambient ?? `${game.getCurrentRenderMode()}-default`);
+  };
+
   const callbacks: UICallbacks = {
     onNavigate: (dir: Direction) => {
       const result = game.navigate(dir);
-      if (result.roomChanged) {
-        audio.setAmbient(game.getPerspective()?.ambient ?? `${game.getCurrentRenderMode()}-default`);
-        game.save();
+      if (result.roomChanged && !result.movementChanged) {
+        applyAmbient();
       }
+      if (result.roomChanged) game.save();
       return {
         text: result.text,
         roomChanged: result.roomChanged,
@@ -186,8 +193,8 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
     },
     onAct: (action: ActionType, itemId?: string) => {
       const result = game.act(action, itemId);
-      if (result.roomChanged) {
-        audio.setAmbient(game.getPerspective()?.ambient ?? `${game.getCurrentRenderMode()}-default`);
+      if (result.roomChanged && !result.movementChanged) {
+        applyAmbient();
       }
       game.save();
       return {
@@ -199,8 +206,8 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
     },
     onUseItemOnRoom: (invItemId: string, targetId: string) => {
       const result = game.useInventoryItemOnRoom(invItemId, targetId);
-      if (result.roomChanged) {
-        audio.setAmbient(game.getPerspective()?.ambient ?? `${game.getCurrentRenderMode()}-default`);
+      if (result.roomChanged && !result.movementChanged) {
+        applyAmbient();
       }
       game.save();
       return {
@@ -209,6 +216,9 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
         transitionOut: result.previousMovement?.transitionOut,
         transitionIn: result.currentMovement?.transitionIn,
       };
+    },
+    onMovementApplied: () => {
+      applyAmbient();
     },
     onSave: () => {
       game.save();
