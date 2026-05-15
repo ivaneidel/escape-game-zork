@@ -1,4 +1,4 @@
-import type { Side, Mode, Direction, ActionType } from './types';
+import type { Side, Mode, Direction, ActionType, Chapter } from './types';
 import { Game } from './Game';
 import { AudioEngine } from './Audio';
 import { GameUI, buildSideSelect, buildModeSelect, type UICallbacks } from './UI';
@@ -8,10 +8,28 @@ import { Sp02 } from './chapters/Sp02';
 import './style.css';
 
 const CHAPTERS_TOGETHER = { ch01: Ch01 };
-const CHAPTERS_SOLO = { sp01: Sp01, sp02: Sp02 };
-// Solo chapters in release order. The picker walks this list looking for the
-// first uncompleted chapter when no in-progress save exists.
-const SOLO_ORDER = [Sp01, Sp02];
+// Solo chapters in release order. Walked by the picker and by the
+// chapter-complete "Continue" button to determine the successor.
+const SOLO_ORDER: Chapter[] = [Sp01, Sp02];
+
+
+function getNextSoloChapter(chapterId: string): Chapter | null {
+  const idx = SOLO_ORDER.findIndex(c => c.id === chapterId);
+  if (idx < 0 || idx >= SOLO_ORDER.length - 1) return null;
+  return SOLO_ORDER[idx + 1]!;
+}
+
+// Returns the first solo chapter with an in-progress (non-completed) save.
+// Game.load by itself returns the first save it finds in the chapters map,
+// which can be a completed save for an earlier chapter even when a later
+// chapter is mid-play. This helper walks SOLO_ORDER and prefers in-progress.
+function findInProgressSolo(): Game | null {
+  for (const chapter of SOLO_ORDER) {
+    const g = Game.load('solo', 'dreamer', { [chapter.id]: chapter });
+    if (g && !g.state.completed) return g;
+  }
+  return null;
+}
 
 // Completion history persists across contentVersion bumps. Save invalidations
 // throw away in-progress state but leave behind "you finished this once."
@@ -56,11 +74,18 @@ function bootModeSelect(app: HTMLElement, audio: AudioEngine) {
         buildSideSelect(app, callbacks);
         return;
       }
-      // Solo path. Resume the most recent in-progress save if one exists;
-      // otherwise start the first uncompleted chapter in release order;
-      // otherwise show a replay prompt for the latest chapter.
-      const existing = Game.load('solo', 'dreamer', CHAPTERS_SOLO);
-      if (existing && !existing.state.completed) {
+      // Solo path. In any non-production build (the dev server, or an
+      // explicit `vite build -m dev` / `-m staging` / etc), jump straight to
+      // a chapter picker. Production builds (`vite build` with default mode)
+      // walk the linear path. The condition is written inline so Vite's
+      // import.meta.env.MODE replacement reduces it to a literal boolean and
+      // the production bundle dead-code-eliminates the picker entirely.
+      if (import.meta.env.MODE !== 'production') {
+        showDevChapterPicker(app, audio);
+        return;
+      }
+      const existing = findInProgressSolo();
+      if (existing) {
         showResumePrompt(app, existing.state.side, existing, audio);
         return;
       }
@@ -134,6 +159,60 @@ function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: Audio
     } else {
       startGame(app, side, audio);
     }
+  });
+}
+
+// Dev-only chapter picker. Vite tree-shakes this out of production builds via
+// the `import.meta.env.DEV` check in the caller, so no pre-release toggle is
+// needed — the picker simply disappears when you ship.
+function showDevChapterPicker(app: HTMLElement, audio: AudioEngine) {
+  const history = loadCompletionHistory();
+  const items = SOLO_ORDER.map(chapter => {
+    const save = Game.load('solo', 'dreamer', { [chapter.id]: chapter });
+    const completed = !!history.solo[chapter.id] || !!save?.state.completed;
+    const inProgress = !!save && !save.state.completed;
+    let status: string;
+    if (inProgress) status = 'in progress — resume';
+    else if (completed) status = 'completed — replay';
+    else status = 'available';
+    return { chapter, save, completed, inProgress, status };
+  });
+
+  app.innerHTML = `
+    <div id="side-select">
+      <div class="side-select-content">
+        <h1 class="side-select-title">Chapters</h1>
+        <p class="side-select-subtitle">Dev build — every chapter is open</p>
+        <div class="side-select-buttons">
+          ${items.map((item, i) => `
+            <button class="side-btn dreamer-btn" data-idx="${i}">
+              <span class="side-btn-label">${item.chapter.title}</span>
+              <span class="side-btn-desc">${item.status}</span>
+            </button>
+          `).join('')}
+          <button class="side-btn reckoner-btn" id="dev-back">
+            <span class="side-btn-label">Back</span>
+            <span class="side-btn-desc">Return to mode select</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  app.querySelectorAll<HTMLElement>('.side-btn[data-idx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx!);
+      const item = items[idx]!;
+      if (item.inProgress && item.save) {
+        startGameWithExisting(app, item.save.state.side, item.save, audio);
+      } else {
+        Game.clearSave('solo', 'dreamer', item.chapter.id);
+        startSoloGame(app, audio, item.chapter);
+      }
+    });
+  });
+  document.getElementById('dev-back')!.addEventListener('click', () => {
+    bootModeSelect(app, audio);
   });
 }
 
@@ -239,9 +318,21 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
     onNewGame: () => {},
     onChapterComplete: () => {
       markChapterCompleted(game.mode, game.chapter.id);
-      Game.clearSave(game.mode, game.state.side, game.chapter.id);
-      bootModeSelect(app, audio);
+      // Intentionally keep the finished save (with state.completed=true) in
+      // localStorage. It is the player's record that they finished this
+      // chapter, alongside egz_completion_history. Replay flows explicitly
+      // clear it when they need a fresh start.
+      const next = game.mode === 'solo' ? getNextSoloChapter(game.chapter.id) : null;
+      if (next) {
+        Game.clearSave('solo', 'dreamer', next.id);
+        startSoloGame(app, audio, next);
+      } else {
+        bootModeSelect(app, audio);
+      }
     },
+    nextChapterTitle: game.mode === 'solo'
+      ? getNextSoloChapter(game.chapter.id)?.title
+      : undefined,
   };
 
   const ui = new GameUI(app, game, audio, callbacks);

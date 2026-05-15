@@ -39,6 +39,10 @@ export interface UICallbacks {
   // swapped in the new room's text/font. main.ts uses this to kick the new
   // ambient (the audio change is deferred until the player taps through).
   onMovementApplied?: () => void;
+  // If the just-finished chapter has a successor (solo), main.ts sets this so
+  // the chapter-complete overlay can offer a direct continue path instead of
+  // dumping the player back at the mode-select.
+  nextChapterTitle?: string;
 }
 
 export function buildModeSelect(container: HTMLElement, callbacks: UICallbacks): void {
@@ -590,16 +594,21 @@ export class GameUI {
     this.textRenderer.appendHtml(`<div class="epilogue">${text}</div>`);
   }
 
-  private maybeShowEpilogue(): void {
+  private async maybeShowEpilogue(): Promise<void> {
     if (this.epilogueShown || !this.snapshot.completed) return;
     this.epilogueShown = true;
     const epilogue = this.game.chapter.epilogue ?? '';
-    setTimeout(() => {
-      this.showChapterComplete(this.game.chapter.title, epilogue);
-    }, 1400);
+    // Same beat as movement crossings: let the closing text settle, then
+    // wait for an explicit tap before the chapter-complete overlay arrives.
+    // Lock input so stray taps on the now-stale layout don't fire actions.
+    this.setInputLocked(true);
+    await this.waitForTapToContinue();
+    this.showChapterComplete(this.game.chapter.title, epilogue);
   }
 
   private showChapterComplete(title: string, epilogue: string): void {
+    const next = this.callbacks.nextChapterTitle;
+    const buttonLabel = next ? `Continue → ${next}` : 'Return';
     const overlay = document.createElement('div');
     overlay.className = 'chapter-complete';
     overlay.innerHTML = `
@@ -607,11 +616,12 @@ export class GameUI {
         <div class="cc-label">Chapter complete</div>
         <div class="cc-title"></div>
         <div class="cc-epilogue"></div>
-        <button class="cc-button" type="button">Return</button>
+        <button class="cc-button" type="button"></button>
       </div>
     `;
     (overlay.querySelector('.cc-title') as HTMLElement).textContent = title;
     (overlay.querySelector('.cc-epilogue') as HTMLElement).textContent = epilogue;
+    (overlay.querySelector('.cc-button') as HTMLElement).textContent = buttonLabel;
     document.body.appendChild(overlay);
     requestAnimationFrame(() => overlay.classList.add('visible'));
     overlay.querySelector('.cc-button')!.addEventListener('click', () => {
