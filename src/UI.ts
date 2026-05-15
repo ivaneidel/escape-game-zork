@@ -530,15 +530,48 @@ export class GameUI {
   // finish, fades in the overlay, waits for the tap, then clears the pane and
   // swaps font/items/audio so the new movement only "arrives" after the player
   // has chosen to step through.
+  //
+  // Between "text typed" and "overlay fades in" the player gets an explicit
+  // tap-to-continue beat. Otherwise the overlay starts fading in the instant
+  // the last character lands, and the final sentence of the action's result
+  // text reads as a flash. The crossing should require commitment.
   private async runMovementSequence(resultText: string, transitionOut?: string, transitionIn?: string): Promise<void> {
     this.setInputLocked(true);
     await this.showResultText(resultText);
+    await this.waitForTapToContinue();
     await this.showMovementTransition(transitionOut, transitionIn);
     this.textRenderer.clear();
     this.refreshFromGame();
     this.callbacks.onMovementApplied?.();
     await this.showResultText(this.snapshot.description);
     this.setInputLocked(false);
+  }
+
+  // Shows a transient "tap to continue" hint above the in-game layout and
+  // resolves on the next document click. Used to gate movement-crossing
+  // overlays so the player can read the final line of the action result.
+  private waitForTapToContinue(): Promise<void> {
+    return new Promise(resolve => {
+      const hint = document.createElement('div');
+      hint.className = 'tap-to-continue';
+      hint.textContent = 'tap to continue';
+      document.body.appendChild(hint);
+      requestAnimationFrame(() => hint.classList.add('visible'));
+
+      let done = false;
+      const dismiss = () => {
+        if (done) return;
+        done = true;
+        document.removeEventListener('click', dismiss, true);
+        hint.classList.remove('visible');
+        setTimeout(() => hint.remove(), 200);
+        resolve();
+      };
+      // Use capture-phase so this fires before any other click handler the
+      // page might (re)attach. The whole #game-layout is pointer-events:none
+      // during input lock, so clicks land on body/app safely.
+      document.addEventListener('click', dismiss, true);
+    });
   }
 
   private async showResultText(text: string): Promise<void> {

@@ -447,6 +447,33 @@ html, body {
   white-space: pre-wrap;
 }
 
+/* Tap-to-continue hint shown between the typewriter settling and the
+   transition overlay. Mirrors the overlay's own hint styling so the second
+   tap feels like a continuation of the first. */
+.tap-to-continue {
+  position: fixed;
+  bottom: 2.5em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 999;
+  pointer-events: none;
+}
+
+.tap-to-continue.visible {
+  animation: tap-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tap-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.75; }
+}
+
 .movement-transition .transition-hint {
   margin-top: 3em;
   font-size: 0.7rem;
