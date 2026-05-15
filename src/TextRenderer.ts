@@ -34,6 +34,9 @@ export class TextRenderer {
         break;
       }
       wrapper.textContent = (wrapper.textContent ?? '') + text[i];
+      // Scroll along with the typing so the cursor stays visible. Only
+      // scroll on newlines + every few characters to keep it cheap.
+      if (text[i] === '\n' || i % 6 === 0) this.scrollToBottom();
       await this.sleep(TYPING_SPEED_MS);
     }
 

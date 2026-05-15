@@ -8,7 +8,7 @@ export type Mode = 'solo' | 'together';
 
 export type Direction = 'north' | 'south' | 'east' | 'west';
 
-export type ActionType = 'look' | 'open' | 'take' | 'push' | 'read' | 'use' | 'note';
+export type ActionType = 'look' | 'open' | 'take' | 'push' | 'examine' | 'use' | 'note';
 
 export interface FlagCondition {
   flag: string;
@@ -57,7 +57,7 @@ export interface ItemActionMap {
   open?: ActionHandler;
   take?: ActionHandler;
   push?: ActionHandler;
-  read?: ActionHandler;
+  examine?: ActionHandler;
   use?: ActionHandler;
   note?: ActionHandler;
 }
@@ -141,6 +141,9 @@ export interface Chapter {
   // Saves carry this stamp; mismatching saves are discarded on load.
   // Defaults to 1 if unset (both in chapter and save).
   contentVersion?: number;
+  // Which action buttons appear in the action bar for this chapter.
+  // If unset, the full default set renders.
+  actionSet?: ActionType[];
 }
 
 export interface RoomState {

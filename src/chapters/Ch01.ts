@@ -56,13 +56,13 @@ Tomorrow's schedule waits on the vanity. Through the wall, the orchestra continu
           {
             id: 'decanter', name: 'crystal decanter',
             examine: `A heavy crystal decanter, half-full of amber liquid. Numbers are etched into the glass: 7, 3, 1, 4. The glass is warm from the lamp.`,
-            actions: ['read'], takeable: true,
+            actions: ['examine'], takeable: true,
             inventory: { label: 'Decanter', examine: 'A heavy crystal decanter. Numbers 7-3-1-4 etched on the side.' },
             onAction: {
-              read: () => ({ text: 'You examine the decanter. The numbers 7, 3, 1, 4 catch the lamplight. Etched cleanly, deliberately — not a wear pattern. Someone put them there on purpose.', effects: [{ setFlags: { 'ch01.decanter-examined': true } }] }),
+              examine: () => ({ text: 'You examine the decanter. The numbers 7, 3, 1, 4 catch the lamplight. Etched cleanly, deliberately — not a wear pattern. Someone put them there on purpose.', effects: [{ setFlags: { 'ch01.decanter-examined': true } }] }),
             },
           },
-          { id: 'costume', name: 'velvet costume', examine: 'Deep velvet, midnight blue. The fabric holds the warmth of a thousand stage lights. You have worn this for every major performance.', actions: ['read'], takeable: false, inventory: { label: 'Costume', examine: 'Deep velvet, midnight blue.' } },
+          { id: 'costume', name: 'velvet costume', examine: 'Deep velvet, midnight blue. The fabric holds the warmth of a thousand stage lights. You have worn this for every major performance.', actions: ['examine'], takeable: false, inventory: { label: 'Costume', examine: 'Deep velvet, midnight blue.' } },
           {
             id: 'notebook', name: "Mentor's notebook",
             examine: `The Mentor's notebook, bound in cracked leather. Pages dense with ink — diagrams, symbols, marginalia. Each page seems to shift when you're not looking directly at it.
@@ -70,10 +70,10 @@ Tomorrow's schedule waits on the vanity. Through the wall, the orchestra continu
 You turn the pages. A bird in a cage beside a broken cup. A room with two doors. A larger cabinet. A single eye.
 
 One page holds your attention — the bird and the broken cup. Below it, in tiny script: "The release is always at the bottom."`,
-            actions: ['read', 'open'], takeable: false,
+            actions: ['examine', 'open'], takeable: false,
             inventory: { label: 'Notebook', examine: "The Mentor's notebook, cracked leather." },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `You turn to the page with the bird and the broken cup.
 
 Beneath the drawing, in the Mentor's precise hand: "The release is always at the bottom. Check it before every rise of the curtain. The day you skip it is the day it matters."
@@ -84,14 +84,14 @@ His voice, across the years.`,
               open: () => ({ text: 'The notebook falls open to a page with a bird and a broken cup.' }),
             },
           },
-          { id: 'photograph', name: 'photograph', examine: 'A small photograph tucked into the mirror frame. A child — eight years old, maybe — squinting in the sun. Liesl. You feel something twist when you look at it.', actions: ['read'], takeable: false, inventory: { label: 'Photo', examine: 'Liesl, summer 1905.' } },
+          { id: 'photograph', name: 'photograph', examine: 'A small photograph tucked into the mirror frame. A child — eight years old, maybe — squinting in the sun. Liesl. You feel something twist when you look at it.', actions: ['examine'], takeable: false, inventory: { label: 'Photo', examine: 'Liesl, summer 1905.' } },
           {
             id: 'emils-note', name: "Emil's note",
             examine: 'A folded note, tucked beneath the decanter. Emil\'s handwriting.',
-            actions: ['read'], takeable: true,
+            actions: ['examine'], takeable: true,
             inventory: { label: "Emil's note", examine: 'A folded note in Emil\'s hand.' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `"Moved the silks to the left wing. Safer there. Trust me."
 
 You smile despite yourself. He's always adjusting things. The silks are in the left wing now.
@@ -129,9 +129,9 @@ One item is unchecked: "crystal decanter — see ledger entry: Emil — birth."`
 
         ambient: 'dressing-room',
         items: [
-          { id: 'inventory-sheet', name: 'inventory sheet', examine: 'Typewritten inventory: "Dressing Room 4 — Apollo-Saal, 1907." 14 props listed, 12 checked.\n\nItem #7 — Crystal decanter. Notation: "Etched with year of birth. See ledger entry: Emil Roth, b. 1872."\n\nItem #14 — [blank] "Relocated per E. Roth."', actions: ['read'], takeable: true, inventory: { label: 'Inventory sheet', examine: 'Dressing Room 4 inventory. 14 props.' } },
-          { id: 'letter', name: 'management letter', examine: 'Unopened letter from Apollo-Saal management, addressed to "Madame Vespera, c/o Artist Entrance." Postmarked 3 days ago. Seal intact.', actions: ['read'], takeable: true, inventory: { label: 'Mgt letter', examine: 'Unopened management letter.' } },
-          { id: 'telegram', name: 'telegram', examine: 'Unopened telegram. Addressed to "Becker, c/o Apollo-Saal Vienna." Postmarked Budapest, 3 days ago. Sender: "V."', actions: ['read', 'open'], takeable: true, inventory: { label: 'Telegram', examine: 'Telegram from Budapest. Sender: V.' } },
+          { id: 'inventory-sheet', name: 'inventory sheet', examine: 'Typewritten inventory: "Dressing Room 4 — Apollo-Saal, 1907." 14 props listed, 12 checked.\n\nItem #7 — Crystal decanter. Notation: "Etched with year of birth. See ledger entry: Emil Roth, b. 1872."\n\nItem #14 — [blank] "Relocated per E. Roth."', actions: ['examine'], takeable: true, inventory: { label: 'Inventory sheet', examine: 'Dressing Room 4 inventory. 14 props.' } },
+          { id: 'letter', name: 'management letter', examine: 'Unopened letter from Apollo-Saal management, addressed to "Madame Vespera, c/o Artist Entrance." Postmarked 3 days ago. Seal intact.', actions: ['examine'], takeable: true, inventory: { label: 'Mgt letter', examine: 'Unopened management letter.' } },
+          { id: 'telegram', name: 'telegram', examine: 'Unopened telegram. Addressed to "Becker, c/o Apollo-Saal Vienna." Postmarked Budapest, 3 days ago. Sender: "V."', actions: ['examine', 'open'], takeable: true, inventory: { label: 'Telegram', examine: 'Telegram from Budapest. Sender: V.' } },
           {
             id: 'filing-cabinet', name: 'filing cabinet',
             examine: 'Steel filing cabinet, four drawers. Labels: "Correspondence 1907," "Safety Certificates," "Contracts," "Personal." The Safety drawer is slightly ajar.',
@@ -158,7 +158,7 @@ A separate sheet is tucked behind it — a handwritten note from Emil: "Counterw
 20:36 — Intermission
 
 Scrawled in pencil on the margin: "Cabinet cue at bar 47 — watch conductor's downbeat." Something about the cue annotation seems off — a number crossed out beneath it.`,
-            actions: ['read'], takeable: true, inventory: { label: 'Program', examine: 'Tonight\'s program.' },
+            actions: ['examine'], takeable: true, inventory: { label: 'Program', examine: 'Tonight\'s program.' },
           },
         ],
       },
@@ -187,7 +187,7 @@ A safety release is visible on the Cabinet's side, hidden behind a small brass p
             examine: `The running order, in Emil's neat hand. Something catches your attention: a line partially erased.
 
 "Cabinet — counterweight check" has been written and scrubbed out. Beneath it, faintly: "She hasn't checked it yet."`,
-            actions: ['read'], takeable: false, inventory: { label: 'Chalkboard', examine: 'The chalkboard.' },
+            actions: ['examine'], takeable: false, inventory: { label: 'Chalkboard', examine: 'The chalkboard.' },
           },
           {
             id: 'cabinet-apparatus', name: 'Cabinet apparatus',
@@ -221,7 +221,7 @@ You let out a breath you didn't realize you were holding.`,
               }),
             },
           },
-          { id: 'emils-coat', name: "Emil's coat", examine: 'An old wool coat, worn at the elbows. You lift it — tobacco, sawdust, him. A ticket stub falls from the pocket: "Budapest — Vienna, Oct 29."', actions: ['read'], takeable: false, inventory: { label: "Emil's coat", examine: 'An old wool coat.' } },
+          { id: 'emils-coat', name: "Emil's coat", examine: 'An old wool coat, worn at the elbows. You lift it — tobacco, sawdust, him. A ticket stub falls from the pocket: "Budapest — Vienna, Oct 29."', actions: ['examine'], takeable: false, inventory: { label: "Emil's coat", examine: 'An old wool coat.' } },
         ],
       },
       reckoner: {
@@ -247,7 +247,7 @@ The air smells of iron and cold ash.`,
 
 Beneath, in Emil's hand: "A. — check the new Cabinet's counterweight. It's not the one we tested."
 Crossed out below: "She hasn't listened yet."`,
-            actions: ['read'], takeable: false, inventory: { label: 'Chalkboard', examine: 'The chalkboard.' },
+            actions: ['examine'], takeable: false, inventory: { label: 'Chalkboard', examine: 'The chalkboard.' },
           },
           {
             id: 'conductors-score', name: "conductor's score",
@@ -256,9 +256,9 @@ Crossed out below: "She hasn't listened yet."`,
 But look closer — the conductor has cut a repeat, renumbering bars 44-49. The original bar 47 is now bar 46. The cue is off by one bar.
 
 If the conductor plays bar 46 and Emil cues the vanish at the marked "bar 47," they'll miss by a full bar.`,
-            actions: ['read'], takeable: false, inventory: { label: 'Score', examine: 'Conductor\'s annotated score.' },
+            actions: ['examine'], takeable: false, inventory: { label: 'Score', examine: 'Conductor\'s annotated score.' },
           },
-          { id: 'contract', name: 'management contract', examine: 'Apollo-Saal management contract. 4-week run, 6 performances weekly. Clause 7: "Artist responsible for own apparatus safety inspections." Signed by theatre director and "A. Becker." Dated October 1, 1907.', actions: ['read'], takeable: true, inventory: { label: 'Contract', examine: 'Management contract.' } },
+          { id: 'contract', name: 'management contract', examine: 'Apollo-Saal management contract. 4-week run, 6 performances weekly. Clause 7: "Artist responsible for own apparatus safety inspections." Signed by theatre director and "A. Becker." Dated October 1, 1907.', actions: ['examine'], takeable: true, inventory: { label: 'Contract', examine: 'Management contract.' } },
           {
             id: 'cabinet-schematics', name: 'Cabinet schematics',
             examine: `Technical drawing: Cabinet apparatus, Version 2.
@@ -269,9 +269,9 @@ Annotations in Emil's hand:
 "Prototype only. NOT FOR PERFORMANCE."
 
 A second set of drawings is tucked behind — a larger Cabinet, more compartments. No safety release at all. The note reads: "For when she's ready."`,
-            actions: ['read'], takeable: true, inventory: { label: 'Schematics', examine: 'Cabinet v2 schematics.' },
+            actions: ['examine'], takeable: true, inventory: { label: 'Schematics', examine: 'Cabinet v2 schematics.' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `You study the schematics carefully.
 
 The v1 Cabinet had the safety release on the left. This new one — the prototype already on stage — has it on the right. A completely different mechanism.
@@ -286,9 +286,9 @@ Ready for what?`,
           {
             id: 'emils-note-cabinet', name: "Emil's note",
             examine: 'Handwritten, pinned to the bench. Folded and refolded many times.',
-            actions: ['read'], takeable: true, inventory: { label: "Emil's note", examine: 'A worn note.' },
+            actions: ['examine'], takeable: true, inventory: { label: "Emil's note", examine: 'A worn note.' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `"A. — please don't test the new Cabinet tonight. Not without me checking it first. The counterweight isn't the same as the old one. The release is on the wrong side. You'll reach for it where it used to be, and your hand will find nothing.
 
 I know you don't want to hear this. But I promised him I'd keep you safe.
@@ -324,8 +324,8 @@ The fourth position is empty.`,
 
         ambient: 'stage-wing',
         items: [
-          { id: 'silks', name: 'performance silks', examine: 'Folded silk cloths — deep red, gold, black. They shimmer. When you hold them, your fingers feel small and deft. Emil moved them here. He was right — they\'re safer.', actions: ['read', 'take'], takeable: true, inventory: { label: 'Silks', examine: 'Performance silks. Red, gold, black.' } },
-          { id: 'bell', name: 'silver bell', examine: 'A handbell in polished silver, clapper wrapped in felt. The metal is cold. Smells faintly of camphor.', actions: ['read', 'use'], takeable: true, inventory: { label: 'Bell', examine: 'A silver handbell.' } },
+          { id: 'silks', name: 'performance silks', examine: 'Folded silk cloths — deep red, gold, black. They shimmer. When you hold them, your fingers feel small and deft. Emil moved them here. He was right — they\'re safer.', actions: ['examine', 'take'], takeable: true, inventory: { label: 'Silks', examine: 'Performance silks. Red, gold, black.' } },
+          { id: 'bell', name: 'silver bell', examine: 'A handbell in polished silver, clapper wrapped in felt. The metal is cold. Smells faintly of camphor.', actions: ['examine', 'use'], takeable: true, inventory: { label: 'Bell', examine: 'A silver handbell.' } },
           { id: 'cabinet-wing', name: 'performance Cabinet', examine: 'The Cabinet. From the wings it looks different — larger, more imposing. The brass handle is cold. The wood grain runs in patterns you know by heart.', actions: ['open', 'push'], takeable: false, inventory: { label: 'Cabinet', examine: 'The performance Cabinet.' } },
         ],
       },
@@ -343,7 +343,7 @@ Stage manager's log confirms the relocation. No further details.`,
 
         ambient: 'stage-wing',
         items: [
-          { id: 'stage-manager-log', name: "stage manager's log", examine: 'Log entry, 18:45: "E. Roth relocated item from position 4 to an alternate position. Reason: safety concern. No further action required."', actions: ['read'], takeable: false, inventory: { label: 'Log', examine: 'Stage manager log entry.' } },
+          { id: 'stage-manager-log', name: "stage manager's log", examine: 'Log entry, 18:45: "E. Roth relocated item from position 4 to an alternate position. Reason: safety concern. No further action required."', actions: ['examine'], takeable: false, inventory: { label: 'Log', examine: 'Stage manager log entry.' } },
           {
             id: 'prop-inventory', name: 'prop inventory list',
             examine: `Prop inventory — Apollo-Saal, 20:00 performance.
@@ -354,7 +354,7 @@ Stage manager's log confirms the relocation. No further details.`,
 4. [BLANK]
 
 Annotation: "Item 4 relocated. See dressing room — decanter, item #7."`,
-            actions: ['read'], takeable: true, inventory: { label: 'Prop list', examine: 'Prop inventory.' },
+            actions: ['examine'], takeable: true, inventory: { label: 'Prop list', examine: 'Prop inventory.' },
           },
           {
             id: 'note-on-stand', name: 'note on music stand',
@@ -363,7 +363,7 @@ Annotation: "Item 4 relocated. See dressing room — decanter, item #7."`,
 "Props confirmed. Cue 1: Cabinet at 20:00 sharp. Watch for my hand — I'll signal from the wings when we're ready. If the third lamp doesn't light, hold for 10 seconds. — E."
 
 Below, in different ink: "She's already tested it. I saw her."`,
-            actions: ['read'], takeable: true, inventory: { label: 'Stand note', examine: 'Note from Emil.' },
+            actions: ['examine'], takeable: true, inventory: { label: 'Stand note', examine: 'Note from Emil.' },
           },
         ],
       },
@@ -396,7 +396,7 @@ It feels right. It feels dangerous.`,
               push: () => ({ text: 'You press the Cabinet\'s side. Solid. But a faint scratch on the counterweight housing catches your eye — as if recently adjusted.' }),
             },
           },
-          { id: 'curtain', name: 'curtain', examine: 'Deep red velvet, floor to ceiling. On the other side: 300 people waiting.', actions: ['push', 'read'], takeable: false, inventory: { label: 'Curtain', examine: 'The main curtain.' } },
+          { id: 'curtain', name: 'curtain', examine: 'Deep red velvet, floor to ceiling. On the other side: 300 people waiting.', actions: ['push', 'examine'], takeable: false, inventory: { label: 'Curtain', examine: 'The main curtain.' } },
         ],
       },
       reckoner: {
@@ -411,7 +411,7 @@ Orchestra pit: Fauré "Pavane" underway. Conductor at bar 46 — score still mar
         ambient: 'stage',
         items: [
           { id: 'trapdoor', name: 'trapdoor', examine: 'Beneath the Cabinet. Recently oiled — fresh machine oil. A scrap of paper in the hinge: "Counterweight checked — E."', actions: ['open', 'push'], takeable: false, inventory: { label: 'Trapdoor', examine: 'The stage trapdoor.' } },
-          { id: 'orchestra', name: 'orchestra pit', examine: 'The orchestra plays "Pavane." The conductor gestures emphatically. His score marks the vanish cue at bar 47, but he just finished bar 46 and the music suggests the cue is sooner.', actions: ['read'], takeable: false, inventory: { label: 'Orchestra', examine: 'The orchestra pit.' } },
+          { id: 'orchestra', name: 'orchestra pit', examine: 'The orchestra plays "Pavane." The conductor gestures emphatically. His score marks the vanish cue at bar 47, but he just finished bar 46 and the music suggests the cue is sooner.', actions: ['examine'], takeable: false, inventory: { label: 'Orchestra', examine: 'The orchestra pit.' } },
         ],
       },
     },

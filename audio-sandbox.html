@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Audio Sandbox · Escape Game</title>
+<style>
+  :root {
+    --bg: #1a1410;
+    --bg-light: #2a2018;
+    --text: #d4c5a9;
+    --text-dim: #8a7a6a;
+    --accent: #c49a6c;
+    --cool: #7a9ab8;
+    --border: #3a2a1a;
+    --btn-bg: #2a1f15;
+    --btn-hover: #3a2f25;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+    background: var(--bg);
+    color: var(--text);
+    padding: 20px;
+    max-width: 880px;
+    margin: 0 auto;
+    line-height: 1.4;
+  }
+  h1 { color: var(--accent); margin-bottom: 4px; font-weight: 400; }
+  .sub { color: var(--text-dim); margin-bottom: 20px; font-size: 13px; }
+  .master {
+    padding: 12px;
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .master label { display: flex; gap: 8px; align-items: center; }
+  .layer {
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--bg-light);
+  }
+  .layer.playing { border-color: var(--accent); }
+  .layer-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .layer-name { font-weight: 600; flex: 1; min-width: 80px; color: var(--accent); }
+  .layer-type { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 4px 6px; font-family: inherit; }
+  .params { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+  .param { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+  .param label { width: 110px; color: var(--text-dim); text-align: right; }
+  .param input[type=number],
+  .param input[type=text] {
+    flex: 1;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 12px;
+    min-width: 0;
+  }
+  .param input[type=range] { flex: 1; }
+  .param-value { min-width: 50px; text-align: left; color: var(--text-dim); font-size: 11px; }
+  button {
+    background: var(--btn-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+  }
+  button:hover { background: var(--btn-hover); }
+  button.primary { color: var(--accent); border-color: var(--accent); }
+  button.playing { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  button.muted { opacity: 0.5; }
+  textarea {
+    width: 100%;
+    height: 200px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    font-family: inherit;
+    font-size: 12px;
+    padding: 10px;
+    resize: vertical;
+  }
+  .full { grid-column: 1 / -1; }
+  .pitches-row { font-size: 11px; }
+  .pitches-row input { flex: 1; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .hint { color: var(--text-dim); font-size: 11px; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Audio Sandbox</h1>
+<div class="sub">Synthesised layers. Tweak live. Copy values out to <code>src/Audio.ts</code> when you like what you hear.</div>
+
+<div class="master">
+  <button id="initBtn" class="primary">Init Audio</button>
+  <label>
+    Master
+    <input type="range" id="master" min="0" max="1" step="0.01" value="0.7" style="width: 160px;">
+    <span id="masterVal" class="param-value">0.70</span>
+  </label>
+  <button id="stopAll">Stop All</button>
+  <button id="playAll" class="primary">Play All</button>
+</div>
+
+<div id="layers"></div>
+
+<div style="display: flex; gap: 8px; margin-top: 8px; margin-bottom: 8px;">
+  <button id="addPiano">＋ Piano layer</button>
+  <button id="addDrone">＋ Drone layer</button>
+  <button id="addNoise">＋ Noise layer</button>
+  <button id="addPad">＋ Pad layer</button>
+</div>
+
+<hr>
+
+<div style="display: flex; gap: 8px; margin-bottom: 8px;">
+  <button id="exportBtn" class="primary">Export current preset</button>
+  <button id="copyBtn">Copy to clipboard</button>
+</div>
+<textarea id="exportArea" readonly placeholder="Click 'Export current preset' to dump the current values as JSON."></textarea>
+<div class="hint">The piano-layer block matches <code>PianoPreset</code> in <code>src/Audio.ts</code> — paste directly into <code>PRESETS</code>.</div>
+
+<script>
+// ─── State ──────────────────────────────────────────────────────────────────
+
+let ctx = null;
+let masterGain = null;
+let masterValue = 0.7;
+
+// Each layer config has a current params object and an active source object.
+const layers = [
+  {
+    name: 'Piano melody',
+    type: 'piano',
+    playing: false,
+    params: {
+      pitches: '220, 261.63, 329.63, 392, 440',
+      intervalMs: 5500,
+      jitterMs: 2000,
+      decay: 4,
+      volume: 0.18,
+      filterRatio: 4,
+      timbre: 'triangle',
+    },
+    activeToken: 0,
+  },
+  {
+    name: 'Drone',
+    type: 'drone',
+    playing: false,
+    params: {
+      freq: 110,
+      detune: 7,
+      filterFreq: 600,
+      filterQ: 1.5,
+      lfoRate: 0.1,
+      lfoDepth: 80,
+      volume: 0.08,
+    },
+    active: null,
+  },
+  {
+    name: 'Noise bed',
+    type: 'noise',
+    playing: false,
+    params: {
+      color: 'brown', // brown / pink / white
+      filterFreq: 500,
+      filterQ: 1,
+      modRate: 0.07,
+      modDepth: 200,
+      volume: 0.06,
+    },
+    active: null,
+  },
+  {
+    name: 'Slow pad',
+    type: 'pad',
+    playing: false,
+    params: {
+      pitches: '110, 164.81, 220, 261.63',
+      detune: 5,
+      attack: 6,
+      filterFreq: 800,
+      volume: 0.05,
+    },
+    active: null,
+  },
+];
+
+// ─── Audio init ─────────────────────────────────────────────────────────────
+
+document.getElementById('initBtn').addEventListener('click', () => {
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = ctx.createGain();
+  masterGain.gain.value = masterValue;
+  masterGain.connect(ctx.destination);
+  document.getElementById('initBtn').textContent = 'Audio Live';
+  document.getElementById('initBtn').classList.add('playing');
+});
+
+document.getElementById('master').addEventListener('input', (e) => {
+  masterValue = parseFloat(e.target.value);
+  document.getElementById('masterVal').textContent = masterValue.toFixed(2);
+  if (masterGain) masterGain.gain.value = masterValue;
+});
+
+document.getElementById('stopAll').addEventListener('click', () => {
+  layers.forEach((l, i) => { if (l.playing) toggleLayer(i); });
+});
+
+document.getElementById('playAll').addEventListener('click', () => {
+  if (!ctx) { document.getElementById('initBtn').click(); }
+  layers.forEach((l, i) => { if (!l.playing) toggleLayer(i); });
+});
+
+// ─── Layer rendering ────────────────────────────────────────────────────────
+
+function renderLayers() {
+  const container = document.getElementById('layers');
+  container.innerHTML = '';
+  layers.forEach((layer, idx) => {
+    const el = document.createElement('div');
+    el.className = 'layer' + (layer.playing ? ' playing' : '');
+    el.innerHTML = `
+      <div class="layer-header">
+        <input type="text" class="layer-name-input" data-idx="${idx}" value="${layer.name}"
+          style="flex:1; background: var(--bg); color: var(--accent); border: 1px solid var(--border); padding: 4px 6px; font-family: inherit; font-size: 13px; font-weight: 600;">
+        <select class="layer-type" data-idx="${idx}">
+          <option value="piano" ${layer.type === 'piano' ? 'selected' : ''}>piano</option>
+          <option value="drone" ${layer.type === 'drone' ? 'selected' : ''}>drone</option>
+          <option value="noise" ${layer.type === 'noise' ? 'selected' : ''}>noise</option>
+          <option value="pad" ${layer.type === 'pad' ? 'selected' : ''}>pad</option>
+        </select>
+        <button class="play-btn ${layer.playing ? 'playing' : ''}" data-idx="${idx}">
+          ${layer.playing ? '■ Stop' : '▶ Play'}
+        </button>
+        <button class="remove-btn" data-idx="${idx}" title="Remove layer"
+          style="color: var(--text-dim); padding: 6px 10px;">×</button>
+      </div>
+      <div class="params">${paramsHtml(layer, idx)}</div>
+    `;
+    container.appendChild(el);
+  });
+  attachLayerEvents();
+}
+
+function paramsHtml(layer, idx) {
+  const p = layer.params;
+  let html = '';
+  if (layer.type === 'piano' || layer.type === 'pad') {
+    html += paramRow(idx, 'pitches', p.pitches, 'text', 'Hz, comma sep');
+  }
+  if (layer.type === 'piano') {
+    html += paramRow(idx, 'intervalMs', p.intervalMs, 'number', 'ms', { step: 100, min: 500 });
+    html += paramRow(idx, 'jitterMs', p.jitterMs, 'number', 'ms', { step: 100, min: 0 });
+    html += paramRow(idx, 'decay', p.decay, 'number', 's', { step: 0.5, min: 0.5 });
+    html += paramRow(idx, 'volume', p.volume, 'number', '', { step: 0.01, min: 0, max: 1 });
+    html += paramRow(idx, 'filterRatio', p.filterRatio, 'number', '× freq', { step: 0.5, min: 1 });
+    html += `<div class="param"><label>timbre</label>
+      <select data-idx="${idx}" data-param="timbre" class="layer-type" style="flex:1">
+        <option value="triangle" ${p.timbre==='triangle'?'selected':''}>triangle</option>
+        <option value="sine" ${p.timbre==='sine'?'selected':''}>sine</option>
+        <option value="sawtooth" ${p.timbre==='sawtooth'?'selected':''}>sawtooth</option>
+        <option value="square" ${p.timbre==='square'?'selected':''}>square</option>
+      </select></div>`;
+  }
+  if (layer.type === 'drone') {
+    html += paramRow(idx, 'freq', p.freq, 'number', 'Hz', { step: 1, min: 20 });
+    html += paramRow(idx, 'detune', p.detune, 'number', 'cents', { step: 1, min: 0 });
+    html += paramRow(idx, 'filterFreq', p.filterFreq, 'number', 'Hz', { step: 50, min: 50 });
+    html += paramRow(idx, 'filterQ', p.filterQ, 'number', '', { step: 0.1, min: 0.1 });
+    html += paramRow(idx, 'lfoRate', p.lfoRate, 'number', 'Hz', { step: 0.01, min: 0 });
+    html += paramRow(idx, 'lfoDepth', p.lfoDepth, 'number', 'Hz', { step: 1, min: 0 });
+    html += paramRow(idx, 'volume', p.volume, 'number', '', { step: 0.01, min: 0, max: 1 });
+  }
+  if (layer.type === 'noise') {
+    html += `<div class="param"><label>color</label>
+      <select data-idx="${idx}" data-param="color" class="layer-type" style="flex:1">
+        <option value="brown" ${p.color==='brown'?'selected':''}>brown</option>
+        <option value="pink" ${p.color==='pink'?'selected':''}>pink</option>
+        <option value="white" ${p.color==='white'?'selected':''}>white</option>
+      </select></div>`;
+    html += paramRow(idx, 'filterFreq', p.filterFreq, 'number', 'Hz', { step: 50, min: 50 });
+    html += paramRow(idx, 'filterQ', p.filterQ, 'number', '', { step: 0.1, min: 0.1 });
+    html += paramRow(idx, 'modRate', p.modRate, 'number', 'Hz', { step: 0.01, min: 0 });
+    html += paramRow(idx, 'modDepth', p.modDepth, 'number', 'Hz', { step: 10, min: 0 });
+    html += paramRow(idx, 'volume', p.volume, 'number', '', { step: 0.01, min: 0, max: 1 });
+  }
+  if (layer.type === 'pad') {
+    html += paramRow(idx, 'detune', p.detune, 'number', 'cents', { step: 1, min: 0 });
+    html += paramRow(idx, 'attack', p.attack, 'number', 's', { step: 0.5, min: 0.5 });
+    html += paramRow(idx, 'filterFreq', p.filterFreq, 'number', 'Hz', { step: 50, min: 50 });
+    html += paramRow(idx, 'volume', p.volume, 'number', '', { step: 0.01, min: 0, max: 1 });
+  }
+  return html;
+}
+
+function paramRow(idx, key, val, type, suffix, attrs) {
+  const a = attrs || {};
+  const attrStr = ['step', 'min', 'max'].filter(k => k in a).map(k => `${k}="${a[k]}"`).join(' ');
+  return `
+    <div class="param">
+      <label>${key}</label>
+      <input type="${type}" data-idx="${idx}" data-param="${key}" value="${val}" ${attrStr}>
+      <span class="param-value">${suffix}</span>
+    </div>
+  `;
+}
+
+function attachLayerEvents() {
+  document.querySelectorAll('.play-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.idx);
+      toggleLayer(idx);
+    });
+  });
+  document.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.idx);
+      if (layers[idx].playing) stopLayer(idx);
+      layers.splice(idx, 1);
+      renderLayers();
+    });
+  });
+  document.querySelectorAll('.layer-name-input').forEach(inp => {
+    inp.addEventListener('input', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.idx);
+      layers[idx].name = e.currentTarget.value;
+    });
+  });
+  document.querySelectorAll('.layer-type[data-idx]:not([data-param])').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.idx);
+      if (layers[idx].playing) toggleLayer(idx); // stop before switching type
+      const newType = e.currentTarget.value;
+      layers[idx].type = newType;
+      layers[idx].params = defaultParamsFor(newType);
+      renderLayers();
+    });
+  });
+  document.querySelectorAll('input[data-idx], select[data-param]').forEach(el => {
+    el.addEventListener('input', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.idx);
+      const param = e.currentTarget.dataset.param;
+      let val = e.currentTarget.value;
+      if (e.currentTarget.type === 'number') val = parseFloat(val);
+      layers[idx].params[param] = val;
+      applyLiveTweak(idx, param);
+    });
+  });
+}
+
+function defaultParamsFor(type) {
+  if (type === 'piano') return { pitches: '220, 261.63, 329.63', intervalMs: 5500, jitterMs: 2000, decay: 4, volume: 0.18, filterRatio: 4, timbre: 'triangle' };
+  if (type === 'drone') return { freq: 110, detune: 7, filterFreq: 600, filterQ: 1.5, lfoRate: 0.1, lfoDepth: 80, volume: 0.08 };
+  if (type === 'noise') return { color: 'brown', filterFreq: 500, filterQ: 1, modRate: 0.07, modDepth: 200, volume: 0.06 };
+  if (type === 'pad') return { pitches: '110, 164.81, 220, 261.63', detune: 5, attack: 6, filterFreq: 800, volume: 0.05 };
+  return {};
+}
+
+// ─── Layer playback ─────────────────────────────────────────────────────────
+
+function toggleLayer(idx) {
+  if (!ctx) document.getElementById('initBtn').click();
+  if (!ctx) return;
+  const layer = layers[idx];
+  if (layer.playing) {
+    stopLayer(idx);
+  } else {
+    startLayer(idx);
+  }
+  renderLayers();
+}
+
+function startLayer(idx) {
+  const layer = layers[idx];
+  layer.playing = true;
+  if (layer.type === 'piano') startPiano(idx);
+  if (layer.type === 'drone') startDrone(idx);
+  if (layer.type === 'noise') startNoise(idx);
+  if (layer.type === 'pad') startPad(idx);
+}
+
+function stopLayer(idx) {
+  const layer = layers[idx];
+  layer.playing = false;
+  if (layer.type === 'piano') {
+    layer.activeToken++; // invalidate loop
+  } else if (layer.active) {
+    try { layer.active.stop(); } catch {}
+    layer.active = null;
+  }
+}
+
+function applyLiveTweak(idx, param) {
+  const layer = layers[idx];
+  if (!layer.playing) return;
+  if (layer.type === 'drone' && layer.active) {
+    if (param === 'freq') {
+      layer.active.osc1.frequency.value = layer.params.freq;
+      layer.active.osc2.frequency.value = layer.params.freq;
+    }
+    if (param === 'detune') {
+      layer.active.osc2.detune.value = layer.params.detune;
+    }
+    if (param === 'filterFreq') layer.active.filter.frequency.value = layer.params.filterFreq;
+    if (param === 'filterQ') layer.active.filter.Q.value = layer.params.filterQ;
+    if (param === 'lfoRate') layer.active.lfo.frequency.value = layer.params.lfoRate;
+    if (param === 'lfoDepth') layer.active.lfoGain.gain.value = layer.params.lfoDepth;
+    if (param === 'volume') layer.active.gain.gain.value = layer.params.volume;
+  }
+  if (layer.type === 'noise' && layer.active) {
+    if (param === 'filterFreq') layer.active.filter.frequency.value = layer.params.filterFreq;
+    if (param === 'filterQ') layer.active.filter.Q.value = layer.params.filterQ;
+    if (param === 'modRate' && layer.active.lfo) layer.active.lfo.frequency.value = layer.params.modRate;
+    if (param === 'modDepth' && layer.active.lfoGain) layer.active.lfoGain.gain.value = layer.params.modDepth;
+    if (param === 'volume') layer.active.gain.gain.value = layer.params.volume;
+    if (param === 'color') {
+      // restart needed for color change
+      stopLayer(idx); startLayer(idx);
+    }
+  }
+  if (layer.type === 'pad' && layer.active) {
+    if (param === 'filterFreq') layer.active.filter.frequency.value = layer.params.filterFreq;
+    if (param === 'volume') layer.active.gain.gain.value = layer.params.volume;
+    if (param === 'pitches' || param === 'detune' || param === 'attack') {
+      stopLayer(idx); startLayer(idx);
+    }
+  }
+  // Piano params auto-apply on next note (loop re-reads layer.params each iteration).
+}
+
+// ─── Synthesis ──────────────────────────────────────────────────────────────
+
+function parsePitches(str) {
+  return str.split(',').map(s => parseFloat(s.trim())).filter(n => n > 0);
+}
+
+function startPiano(idx) {
+  const layer = layers[idx];
+  const token = ++layer.activeToken;
+  const tick = () => {
+    if (token !== layer.activeToken) return;
+    const p = layer.params;
+    const pitches = parsePitches(p.pitches);
+    if (pitches.length > 0) {
+      const pitch = pitches[Math.floor(Math.random() * pitches.length)];
+      playPianoNote(pitch, p.decay, p.volume, p.filterRatio, p.timbre);
+    }
+    const next = p.intervalMs + (Math.random() * 2 - 1) * p.jitterMs;
+    setTimeout(tick, Math.max(400, next));
+  };
+  setTimeout(tick, 200 + Math.random() * 400);
+}
+
+function playPianoNote(freq, decay, volume, filterRatio, timbre) {
+  const now = ctx.currentTime;
+  const fundamental = ctx.createOscillator();
+  fundamental.type = timbre || 'triangle';
+  fundamental.frequency.value = freq;
+  const octave = ctx.createOscillator();
+  octave.type = 'sine';
+  octave.frequency.value = freq * 2;
+  const fifth = ctx.createOscillator();
+  fifth.type = 'sine';
+  fifth.frequency.value = freq * 3;
+
+  const fundGain = ctx.createGain(); fundGain.gain.value = 1;
+  const octGain = ctx.createGain(); octGain.gain.value = 0.28;
+  const fifthGain = ctx.createGain(); fifthGain.gain.value = 0.12;
+
+  fundamental.connect(fundGain);
+  octave.connect(octGain);
+  fifth.connect(fifthGain);
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(freq * (filterRatio - 1), now);
+  filter.frequency.linearRampToValueAtTime(freq * (filterRatio + 2), now + 0.05);
+  filter.frequency.exponentialRampToValueAtTime(Math.max(freq * (filterRatio / 2), 200), now + decay);
+  filter.Q.value = 0.6;
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(volume, now + 0.02);
+  env.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+
+  fundGain.connect(filter); octGain.connect(filter); fifthGain.connect(filter);
+  filter.connect(env);
+  env.connect(masterGain);
+
+  fundamental.start(now); octave.start(now); fifth.start(now);
+  fundamental.stop(now + decay + 0.1);
+  octave.stop(now + decay + 0.1);
+  fifth.stop(now + decay + 0.1);
+}
+
+function startDrone(idx) {
+  const layer = layers[idx];
+  const p = layer.params;
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sawtooth';
+  osc1.frequency.value = p.freq;
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sawtooth';
+  osc2.frequency.value = p.freq;
+  osc2.detune.value = p.detune;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = p.filterFreq;
+  filter.Q.value = p.filterQ;
+
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine';
+  lfo.frequency.value = p.lfoRate;
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = p.lfoDepth;
+  lfo.connect(lfoGain);
+  lfoGain.connect(filter.frequency);
+
+  const gain = ctx.createGain();
+  gain.gain.value = p.volume;
+
+  osc1.connect(filter); osc2.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+
+  osc1.start(); osc2.start(); lfo.start();
+
+  layer.active = {
+    osc1, osc2, lfo, lfoGain, filter, gain,
+    stop: () => {
+      try { osc1.stop(); } catch {}
+      try { osc2.stop(); } catch {}
+      try { lfo.stop(); } catch {}
+    },
+  };
+}
+
+function makeNoiseBuffer(color) {
+  const bufferSize = ctx.sampleRate * 2;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  if (color === 'white') {
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  } else if (color === 'pink') {
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99886*b0 + white*0.0555179;
+      b1 = 0.99332*b1 + white*0.0750759;
+      b2 = 0.96900*b2 + white*0.1538520;
+      b3 = 0.86650*b3 + white*0.3104856;
+      b4 = 0.55000*b4 + white*0.5329522;
+      b5 = -0.7616*b5 - white*0.0168980;
+      data[i] = (b0+b1+b2+b3+b4+b5+b6+white*0.5362) * 0.11;
+      b6 = white*0.115926;
+    }
+  } else { // brown
+    let lastOut = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      data[i] = (lastOut + 0.02 * white) / 1.02;
+      lastOut = data[i];
+      data[i] *= 3.5;
+    }
+  }
+  return buffer;
+}
+
+function startNoise(idx) {
+  const layer = layers[idx];
+  const p = layer.params;
+  const src = ctx.createBufferSource();
+  src.buffer = makeNoiseBuffer(p.color);
+  src.loop = true;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = p.filterFreq;
+  filter.Q.value = p.filterQ;
+
+  let lfo = null, lfoGain = null;
+  if (p.modRate > 0) {
+    lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = p.modRate;
+    lfoGain = ctx.createGain();
+    lfoGain.gain.value = p.modDepth;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+  }
+
+  const gain = ctx.createGain();
+  gain.gain.value = p.volume;
+
+  src.connect(filter); filter.connect(gain); gain.connect(masterGain);
+  src.start();
+  if (lfo) lfo.start();
+
+  layer.active = {
+    src, filter, gain, lfo, lfoGain,
+    stop: () => {
+      try { src.stop(); } catch {}
+      if (lfo) try { lfo.stop(); } catch {}
+    },
+  };
+}
+
+function startPad(idx) {
+  const layer = layers[idx];
+  const p = layer.params;
+  const pitches = parsePitches(p.pitches);
+  const now = ctx.currentTime;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = p.filterFreq;
+  filter.Q.value = 0.7;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(p.volume, now + p.attack);
+
+  const oscs = [];
+  pitches.forEach((freq, i) => {
+    const o1 = ctx.createOscillator();
+    o1.type = 'sine';
+    o1.frequency.value = freq;
+    const o2 = ctx.createOscillator();
+    o2.type = 'triangle';
+    o2.frequency.value = freq;
+    o2.detune.value = (i % 2 === 0 ? 1 : -1) * p.detune;
+    const og = ctx.createGain();
+    og.gain.value = 1 / pitches.length;
+    o1.connect(og); o2.connect(og);
+    og.connect(filter);
+    o1.start(now); o2.start(now);
+    oscs.push(o1, o2);
+  });
+
+  filter.connect(gain); gain.connect(masterGain);
+
+  layer.active = {
+    oscs, filter, gain,
+    stop: () => {
+      const t = ctx.currentTime;
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + 1);
+      setTimeout(() => oscs.forEach(o => { try { o.stop(); } catch {} }), 1100);
+    },
+  };
+}
+
+// ─── Export ─────────────────────────────────────────────────────────────────
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const exported = layers.map(l => ({
+    name: l.name,
+    type: l.type,
+    params: l.type === 'piano' ? {
+      pitches: parsePitches(l.params.pitches),
+      intervalMs: l.params.intervalMs,
+      jitterMs: l.params.jitterMs,
+      decay: l.params.decay,
+      volume: l.params.volume,
+      filterRatio: l.params.filterRatio,
+      timbre: l.params.timbre,
+    } : (l.type === 'pad' ? {
+      ...l.params,
+      pitches: parsePitches(l.params.pitches),
+    } : { ...l.params }),
+  }));
+  document.getElementById('exportArea').value = JSON.stringify(exported, null, 2);
+});
+
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const txt = document.getElementById('exportArea').value;
+  if (!txt) document.getElementById('exportBtn').click();
+  try {
+    await navigator.clipboard.writeText(document.getElementById('exportArea').value);
+    document.getElementById('copyBtn').textContent = 'Copied!';
+    setTimeout(() => document.getElementById('copyBtn').textContent = 'Copy to clipboard', 1200);
+  } catch {
+    document.getElementById('copyBtn').textContent = 'Select + copy manually';
+  }
+});
+
+// ─── Add layer buttons ──────────────────────────────────────────────────────
+
+function addLayer(type) {
+  const sameTypeCount = layers.filter(l => l.type === type).length;
+  const baseName = { piano: 'Piano', drone: 'Drone', noise: 'Noise', pad: 'Pad' }[type] || 'Layer';
+  const name = sameTypeCount > 0 ? `${baseName} ${sameTypeCount + 1}` : baseName;
+  layers.push({
+    name,
+    type,
+    playing: false,
+    params: defaultParamsFor(type),
+    activeToken: 0,
+    active: null,
+  });
+  renderLayers();
+}
+
+document.getElementById('addPiano').addEventListener('click', () => addLayer('piano'));
+document.getElementById('addDrone').addEventListener('click', () => addLayer('drone'));
+document.getElementById('addNoise').addEventListener('click', () => addLayer('noise'));
+document.getElementById('addPad').addEventListener('click', () => addLayer('pad'));
+
+// ─── Boot ───────────────────────────────────────────────────────────────────
+
+renderLayers();
+</script>
+
+</body>
+</html>
