@@ -4,10 +4,14 @@ import { AudioEngine } from './Audio';
 import { GameUI, buildSideSelect, buildModeSelect, type UICallbacks } from './UI';
 import { Ch01 } from './chapters/Ch01';
 import { Sp01 } from './chapters/Sp01';
+import { Sp02 } from './chapters/Sp02';
 import './style.css';
 
 const CHAPTERS_TOGETHER = { ch01: Ch01 };
-const CHAPTERS_SOLO = { sp01: Sp01 };
+const CHAPTERS_SOLO = { sp01: Sp01, sp02: Sp02 };
+// Solo chapters in release order. The picker walks this list looking for the
+// first uncompleted chapter when no in-progress save exists.
+const SOLO_ORDER = [Sp01, Sp02];
 
 // Completion history persists across contentVersion bumps. Save invalidations
 // throw away in-progress state but leave behind "you finished this once."
@@ -52,19 +56,22 @@ function bootModeSelect(app: HTMLElement, audio: AudioEngine) {
         buildSideSelect(app, callbacks);
         return;
       }
-      // Solo path.
+      // Solo path. Resume the most recent in-progress save if one exists;
+      // otherwise start the first uncompleted chapter in release order;
+      // otherwise show a replay prompt for the latest chapter.
       const existing = Game.load('solo', 'dreamer', CHAPTERS_SOLO);
       if (existing && !existing.state.completed) {
         showResumePrompt(app, existing.state.side, existing, audio);
         return;
       }
       const history = loadCompletionHistory();
-      if (history.solo['sp01']) {
-        showSoloReplayPrompt(app, audio);
+      const nextChapter = SOLO_ORDER.find(c => !history.solo[c.id]);
+      if (nextChapter) {
+        Game.clearSave('solo', 'dreamer', nextChapter.id);
+        startSoloGame(app, audio, nextChapter);
         return;
       }
-      Game.clearSave('solo', 'dreamer', 'sp01');
-      startSoloGame(app, audio);
+      showSoloReplayPrompt(app, audio);
     },
     onPickSide: (side: Side) => {
       const existing = Game.load('together', side, CHAPTERS_TOGETHER);
@@ -88,9 +95,9 @@ function bootModeSelect(app: HTMLElement, audio: AudioEngine) {
   buildModeSelect(app, callbacks);
 }
 
-function startSoloGame(app: HTMLElement, audio: AudioEngine) {
+function startSoloGame(app: HTMLElement, audio: AudioEngine, chapter = Sp01) {
   // state.side is a seed; in solo mode rendering is driven by movement.mode.
-  const game = new Game('solo', 'dreamer', Sp01);
+  const game = new Game('solo', 'dreamer', chapter);
   startGameWithExisting(app, game.state.side, game, audio);
 }
 
@@ -121,7 +128,9 @@ function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: Audio
   document.getElementById('resume-no')!.addEventListener('click', () => {
     Game.clearSave(game.mode, side, game.chapter.id);
     if (game.mode === 'solo') {
-      startSoloGame(app, audio);
+      // Restart the same chapter the player was abandoning, not Ch01 by default.
+      const sameChapter = SOLO_ORDER.find(c => c.id === game.chapter.id) ?? Sp01;
+      startSoloGame(app, audio, sameChapter);
     } else {
       startGame(app, side, audio);
     }
@@ -129,7 +138,9 @@ function showResumePrompt(app: HTMLElement, side: Side, game: Game, audio: Audio
 }
 
 function showSoloReplayPrompt(app: HTMLElement, audio: AudioEngine) {
-  const title = Sp01.title;
+  // Replay the most recent completed chapter. Player can use it to revisit.
+  const replayChapter = SOLO_ORDER[SOLO_ORDER.length - 1] ?? Sp01;
+  const title = replayChapter.title;
   app.innerHTML = `
     <div id="side-select">
       <div class="side-select-content">
@@ -149,8 +160,8 @@ function showSoloReplayPrompt(app: HTMLElement, audio: AudioEngine) {
     </div>
   `;
   document.getElementById('replay-yes')!.addEventListener('click', () => {
-    Game.clearSave('solo', 'dreamer', 'sp01');
-    startSoloGame(app, audio);
+    Game.clearSave('solo', 'dreamer', replayChapter.id);
+    startSoloGame(app, audio, replayChapter);
   });
   document.getElementById('replay-back')!.addEventListener('click', () => {
     bootModeSelect(app, audio);
