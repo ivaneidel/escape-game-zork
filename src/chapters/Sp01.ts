@@ -18,11 +18,11 @@ function atmoRead(id: string, name: string, examine: string, readText: string): 
     id,
     name,
     examine,
-    actions: ['read'],
+    actions: ['examine'],
     takeable: false,
     inventory: { label: '', examine: '' },
     onAction: {
-      read: () => ({ text: readText }),
+      examine: () => ({ text: readText }),
     },
   };
 }
@@ -43,7 +43,8 @@ function decoy(id: string, name: string, examine: string): Item {
 export const Sp01: Chapter = {
   id: 'sp01',
   title: 'First Light',
-  contentVersion: 3,
+  contentVersion: 5,
+  actionSet: ['look', 'open', 'examine', 'use', 'note'],
   starts: {
     dreamer: 'tomas-desk-prologue',
     reckoner: 'tomas-desk-prologue',
@@ -150,13 +151,21 @@ The lamp is warm. The kitchen is east.`,
             id: 'journal-prologue',
             name: 'your journal',
             examine: `A hardcover notebook, half full. Six weeks of brief entries.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
-                text: `You read back over the last entries. Most of them are short. One of them ends, mid-sentence: "I don't know who he is." You read it twice. The window's reflection is yours. So far.`,
-              }),
+              examine: (ctx: ActionContext) => {
+                if (ctx.flags['prologue.journal-read']) {
+                  return {
+                    text: `The unfinished sentence is still there. "I don't know who he is." You don't, either.`,
+                  };
+                }
+                return {
+                  text: `You read back over the last entries. Most of them are short. One of them ends, mid-sentence: "I don't know who he is." You read it twice. The window's reflection is yours. So far.`,
+                  effects: [{ setFlags: { 'prologue.journal-read': true } }],
+                };
+              },
               note: () => ({
                 text: `You have nothing new to write yet. The page is waiting.`,
               }),
@@ -172,13 +181,21 @@ The lamp is warm. The kitchen is east.`,
             id: 'courtyard-window-prologue',
             name: 'the window',
             examine: `Four floors down to a small courtyard. Across the well, one lit window. A curtain moves. No one is there.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
-                text: `You watch the lit window. Whoever lives there has not come into view in six weeks. Tonight is no exception.`,
-              }),
+              examine: (ctx: ActionContext) => {
+                if (ctx.flags['prologue.window-watched']) {
+                  return {
+                    text: `The curtain stirs once and is still. Whoever they are, they are not for you tonight.`,
+                  };
+                }
+                return {
+                  text: `You watch the lit window. Whoever lives there has not come into view in six weeks. Tonight is no exception.`,
+                  effects: [{ setFlags: { 'prologue.window-watched': true } }],
+                };
+              },
             },
           },
           {
@@ -192,6 +209,15 @@ The lamp is warm. The kitchen is east.`,
               use: (ctx: ActionContext) => {
                 if (ctx.flags['prologue.lamp-off']) {
                   return { text: `The lamp is already off. The room remains dark.` };
+                }
+                // Three small acts of letting-go before sleep will take him.
+                // Each gate nudges toward the next thing rather than naming it.
+                if (
+                  !ctx.flags['prologue.journal-read'] ||
+                  !ctx.flags['prologue.window-watched'] ||
+                  !ctx.flags['prologue.letter-read']
+                ) {
+                  return { text: `Your hand is on the switch. Not yet. There are still things to do here.` };
                 }
                 return {
                   text: `You turn the lamp off.
@@ -251,12 +277,27 @@ The desk is west.`,
             'Folded once, on the table. The neighbour\'s small careful hand.',
             `"Brought your mail up. Come down for coffee sometime. — Signora R." You will not. You have not in eleven years.`
           ),
-          atmoRead(
-            'sister-letter',
-            "Maria's letter",
-            'From your sister, one city over. Two pages, both sides.',
-            `She is planning to visit in May. She has stopped asking when you will visit her. You read it once already. The paragraph about her son being well is the only one that lands.`
-          ),
+          {
+            id: 'sister-letter',
+            name: "Maria's letter",
+            examine: 'From your sister, one city over. Two pages, both sides.',
+            actions: ['examine'],
+            takeable: false,
+            inventory: { label: '', examine: '' },
+            onAction: {
+              examine: (ctx: ActionContext) => {
+                if (ctx.flags['prologue.letter-read']) {
+                  return {
+                    text: `Two pages, both sides. The paragraph about her son being well is still the only one that lands.`,
+                  };
+                }
+                return {
+                  text: `She is planning to visit in May. She has stopped asking when you will visit her. You read it once already. The paragraph about her son being well is the only one that lands.`,
+                  effects: [{ setFlags: { 'prologue.letter-read': true } }],
+                };
+              },
+            },
+          },
           atmoRead(
             'kitchen-radio-prologue',
             'the radio',
@@ -313,11 +354,11 @@ The window. The panel. A small sticker on the metal. A manual strapped to the bu
             id: 'window',
             name: 'the window',
             examine: `Curved glass. Cold. A number is etched into the inside of the lower rim, where no observer would ever look.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['m1.window-read']) {
                   return { text: `Seven. Three. One. Four. The same number, settled on. His gaze still resting on it.` };
                 }
@@ -352,11 +393,11 @@ The window. The panel. A small sticker on the metal. A manual strapped to the bu
             id: 'panel',
             name: 'the panel',
             examine: `Switches you somehow know how to use. Dials in Cyrillic. A toggle that should not be in the position it is in.`,
-            actions: ['read', 'use'],
+            actions: ['examine', 'use'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `You read the panel the way he reads it: by hand. The toggle is wrong. He notices and does not correct it.`,
               }),
               use: (ctx: ActionContext) => {
@@ -389,11 +430,11 @@ The breathing slows. The window's not-sky brightens. Something gives.`,
             id: 'sticker',
             name: 'a small sticker',
             examine: `On the panel, beside his thumb. A stylised bird in flight.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `A stylised bird. Decorative. Unofficial. Someone put it there.`,
               }),
               note: (ctx: ActionContext) => {
@@ -463,11 +504,11 @@ The breathing slows. The window's not-sky brightens. Something gives.`,
             id: 'the-voice',
             name: 'a voice, somewhere',
             examine: `Just at the threshold of hearing. A name, repeated.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `You strain to hear. The first syllable is "Kon—". The rest never comes.`,
               }),
               note: (ctx: ActionContext) => {
@@ -493,11 +534,11 @@ The breathing slows. The window's not-sky brightens. Something gives.`,
             id: 'second-sticker',
             name: 'a second sticker',
             examine: `On a junction box. A different motif this time — a stylised fish, mid-dive.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `A fish, mid-dive. Stylised the same way the bird was. Same hand, perhaps.`,
               }),
               note: (ctx: ActionContext) => {
@@ -557,11 +598,11 @@ The typewriter. The radiator. A phone, the lunch tin, a poster on the wall. A do
             id: 'schedule',
             name: 'the schedule',
             examine: `Typewritten, on a single sheet of carbon paper.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `Today, 13 April 1965 — a Tuesday.\n\n09:00 — medical review.\n11:30 — document signing.\n16:00 — briefing (room number redacted).\n\nTomorrow blank. Friday: "See cosmodrome."`,
               }),
             },
@@ -570,11 +611,11 @@ The typewriter. The radiator. A phone, the lunch tin, a poster on the wall. A do
             id: 'medical-report',
             name: 'the medical fitness report',
             examine: `His own. Typewritten, signed and stamped by the flight surgeon.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `Standard panel. Cleared. One value annotated in pencil in the margin — a small "watch this" in a hand that is not the surgeon's and not Andrei's.\n\nHe reads it twice. He does not say anything.`,
               }),
             },
@@ -583,11 +624,11 @@ The typewriter. The radiator. A phone, the lunch tin, a poster on the wall. A do
             id: 'mission-file',
             name: 'the mission file',
             examine: `A buff folder, partially redacted. Most of it sealed against this morning's reading.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `The codename: redacted except for a single Cyrillic letter — В.\nDuration: redacted.\nRisk profile: redacted.\n\nEquipment list intact. Support roster intact. Weather contingencies intact. Almost everything that matters: not.`,
               }),
             },
@@ -596,11 +637,11 @@ The typewriter. The radiator. A phone, the lunch tin, a poster on the wall. A do
             id: 'photograph-framed',
             name: 'the framed photograph',
             examine: `A small wooden frame on the corner of the desk.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `Yelena and a girl of seven at a lake, summer, two years ago. On the back, in Yelena's hand: "Nina, the lake, '63."`,
               }),
             },
@@ -609,11 +650,11 @@ The typewriter. The radiator. A phone, the lunch tin, a poster on the wall. A do
             id: 'photograph-second',
             name: 'the second photograph',
             examine: `A small photograph beside the inkwell.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['photograph.flipped']) {
                   return { text: `Still turned over. The same face. The same pencil mark beneath.` };
                 }
@@ -648,11 +689,11 @@ The typewriter. The radiator. A phone, the lunch tin, a poster on the wall. A do
             id: 'envelope',
             name: "Drozdov's envelope",
             examine: `Sealed. Two words written across it in pencil, in Drozdov's hand: "Burn after."`,
-            actions: ['read', 'use'],
+            actions: ['examine', 'use'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['m2.envelope-read']) {
                   return { text: `The same two lines. The same rhythm. He has read it three times.` };
                 }
@@ -698,11 +739,11 @@ The radiator clanks. The light through the window shifts. The dream tilts.`,
             id: 'form',
             name: 'the signature confirmation form',
             examine: `A typewritten form. The line for the confirmation code is blank.`,
-            actions: ['read', 'use'],
+            actions: ['examine', 'use'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `Standard procedural language. Sign, countersign, file. A four-digit code, given orally beforehand, is required at the bottom.`,
               }),
               use: (ctx: ActionContext) => {
@@ -749,11 +790,38 @@ The radiator clanks. The light through the window shifts. The dream tilts.`,
             'A propaganda poster — a stylised cosmonaut against a stylised orbit. The toponymy underneath is wrong by one letter.',
             `He looks at it every morning and does not bother to correct it. Someone else, possibly Drozdov, has noticed the misprint and not said.`
           ),
-          decoy(
-            'lunch-tin',
-            'a lunch tin',
-            'Half-eaten. Bread, sausage, an apple already brown. He will not get back to it before evening.'
-          ),
+          {
+            id: 'lunch-tin',
+            name: 'a lunch tin',
+            examine: `On the corner of the desk. Heavier than it looks.`,
+            actions: ['open', 'examine'],
+            takeable: false,
+            inventory: { label: '', examine: '' },
+            onAction: {
+              examine: () => ({
+                text: `He has been carrying the same tin to work for nine years. The dent on the lid is the dent on the lid.`,
+              }),
+              open: () => ({
+                text: `Bread, sausage, an apple already brown. He will not get back to it before evening. He closes it.`,
+              }),
+            },
+          },
+          {
+            id: 'desk-drawer',
+            name: 'the desk drawer',
+            examine: `A shallow drawer under the desktop, slightly ajar.`,
+            actions: ['open', 'examine'],
+            takeable: false,
+            inventory: { label: '', examine: '' },
+            onAction: {
+              examine: () => ({
+                text: `It is the kind of drawer that holds nothing valuable, and so is never locked.`,
+              }),
+              open: () => ({
+                text: `Pencils. A worn-out eraser. A coin from a country Andrei has not visited. A receipt for a haircut he does not remember getting. He shuts it.`,
+              }),
+            },
+          },
           decoy(
             'wall-clock-m2',
             'the wall clock',
@@ -778,11 +846,11 @@ The radiator clanks. The light through the window shifts. The dream tilts.`,
             id: 'corridor-photos',
             name: 'the wall of photographs',
             examine: `Past cosmonauts, framed, in a row. Several you do not recognise.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['photograph.flipped']) {
                   return { text: `Most of the faces mean nothing to you. One of them — third from the left — is K. The face from the photograph on his desk. Here he is, framed, official. Andrei walks past without looking.` };
                 }
@@ -890,11 +958,11 @@ The radiator clanks. The light through the window shifts. The dream tilts.`,
             id: 'distant-figure',
             name: 'a distant figure',
             examine: `At the far edge of the parade ground, walking. In flight gear. He does not turn to look back.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `He does not turn to look. He walks east. You cannot tell, from here, whether you have seen him before.`,
               }),
               note: (ctx: ActionContext) => {
@@ -941,11 +1009,11 @@ The window black. The wall calendar to your left. A door behind you that, somewh
             id: 'yelena',
             name: 'Yelena',
             examine: `She is making something — bread, or what becomes bread. Her hands are sure. Her voice, when she speaks, is a half-step too high.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `She says, without turning: "You're late again." Andrei does not respond. You hear her smile.`,
               }),
             },
@@ -954,11 +1022,11 @@ The window black. The wall calendar to your left. A door behind you that, somewh
             id: 'nina',
             name: 'Nina',
             examine: `Seven years old. A pencil in her hand. A drawing forming under it. She is humming, then quietly singing.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['m3.phrase-heard']) {
                   return { text: `She is still singing it. The same three syllables, three beats, a fall. She has not looked up.` };
                 }
@@ -993,11 +1061,11 @@ The window black. The wall calendar to your left. A door behind you that, somewh
             id: 'calendar',
             name: 'the wall calendar',
             examine: `April 1965. One Tuesday circled in pencil. Two weeks from today.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['m3.date-noted']) {
                   return { text: `The same Tuesday. April 27.` };
                 }
@@ -1093,11 +1161,11 @@ The window black. The wall calendar to your left. A door behind you that, somewh
             id: 'middle-photo',
             name: 'the middle photograph',
             examine: `A man in flight gear, late thirties, mid-laugh.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['photograph.flipped']) {
                   return { text: `It is the same man. The pencil mark on the back of the photograph on Andrei's desk: K., 1962. Here he is full-face, framed, eyes bright. Nina knows his face.\n\nAndrei stops. The dream stops with him.` };
                 }
@@ -1186,11 +1254,11 @@ The window black. The wall calendar to your left. A door behind you that, somewh
             id: 'drawings-on-wall',
             name: 'drawings on the wall',
             examine: `Crayon. A dozen of them, stuck up with bits of tape, in three uneven rows.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `Most of them are houses, suns, the lake. One of them — third row, fourth from the left — is the same small house with three figures, but the fourth figure is added: a man in flight gear, standing slightly apart. K.\n\nNina has labelled him "the man who taught me the song."`,
               }),
               note: (ctx: ActionContext) => {
@@ -1235,11 +1303,11 @@ The window black. The wall calendar to your left. A door behind you that, somewh
             id: 'strange-coat',
             name: 'the strange coat',
             examine: `Heavy wool, hanging at the back of Nina's closet. Shoulders broader than Andrei's. A smell of cold that is not this flat's cold.`,
-            actions: ['read', 'use'],
+            actions: ['examine', 'use'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (!ctx.flags['bedroom.closet-opened']) {
                   return { text: `You cannot read it until you have seen it. The closet is closed.` };
                 }
@@ -1331,11 +1399,11 @@ The window black. The wall calendar to your left. A door behind you that, somewh
             id: 'anteroom-poster',
             name: 'the poster',
             examine: `Three words on a cream-coloured ground, in a stern serif: DISCIPLINE. DISCRETION. DISTANCE.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `The same three words in the same stern type, on the wall of every secured corridor in the programme. Cream ground. Stern serif. He has stopped seeing it.`,
               }),
               note: (ctx: ActionContext) => {
@@ -1390,11 +1458,11 @@ On the table in front of you: the briefing acceptance form, a blank line where t
             id: 'briefing-document',
             name: 'the briefing document',
             examine: `Drozdov reads from it. You can read along.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['m4.briefing-heard']) {
                   return { text: `The same callsign. The same date. The same three beats.` };
                 }
@@ -1445,11 +1513,11 @@ On the table in front of you: the briefing acceptance form, a blank line where t
             id: 'briefing-form',
             name: 'the briefing form',
             examine: `An acceptance form. A blank line where the callsign should be written.`,
-            actions: ['read', 'use'],
+            actions: ['examine', 'use'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `Standard acceptance language. Once signed, the mission is his.`,
               }),
               use: (ctx: ActionContext) => {
@@ -1462,6 +1530,10 @@ On the table in front of you: the briefing acceptance form, a blank line where t
                 const hasCallsign = ctx.journal.some(j => j.id === 'briefing-callsign' || j.id === 'alignment');
                 if (!hasCallsign) {
                   return { text: `He has heard it but he has not yet kept it. He cannot write what he has not yet written somewhere closer.` };
+                }
+                const hasPosterSlogan = ctx.journal.some(j => j.id === 'three-words');
+                if (!hasPosterSlogan) {
+                  return { text: `His pen hesitates. Something he walked past in the corridor is not yet in the journal. He has signed forms like this before and regretted it. Not today, until he has the words straight.` };
                 }
                 return {
                   text: `He writes the callsign on the blank line: LOR-ka, LOR-ka, LOR. He signs. Drozdov countersigns without looking at him.
@@ -1554,11 +1626,11 @@ The journal is the only thing here that has changed.`,
             id: 'journal-coda',
             name: 'your journal',
             examine: `Full now. The last entry sits open beneath your hand.`,
-            actions: ['read'],
+            actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: (ctx: ActionContext) => {
+              examine: (ctx: ActionContext) => {
                 if (ctx.flags['coda.journal-read']) {
                   return { text: `You have already read it back. The window is still dark.` };
                 }
@@ -1594,11 +1666,11 @@ You sit with it for a long time. The window is still dark.`,
             id: 'coda-window',
             name: 'the window',
             examine: `The courtyard, dark. The window opposite, dark. Your reflection, faint.`,
-            actions: ['open', 'read'],
+            actions: ['open', 'examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              read: () => ({
+              examine: () => ({
                 text: `Your reflection. The lamp behind you. Your face. The journal lies behind you, full of a stranger's day.`,
               }),
               open: (ctx: ActionContext) => {

@@ -35,6 +35,10 @@ export interface UICallbacks {
   onPickMode: (mode: Mode) => void;
   onNewGame: () => void;
   onChapterComplete: () => void;
+  // Fired after a movement-change overlay has been dismissed and the UI has
+  // swapped in the new room's text/font. main.ts uses this to kick the new
+  // ambient (the audio change is deferred until the player taps through).
+  onMovementApplied?: () => void;
 }
 
 export function buildModeSelect(container: HTMLElement, callbacks: UICallbacks): void {
@@ -120,14 +124,7 @@ function buildLayout(): { app: HTMLElement; header: HTMLElement; textPane: HTMLE
           </div>
           <button class="dpad-btn" data-dir="south">▼</button>
         </div>
-        <div id="action-bar">
-          <button class="action-btn" data-action="look">LOOK</button>
-          <button class="action-btn" data-action="open">OPEN</button>
-          <button class="action-btn" data-action="take">TAKE</button>
-          <button class="action-btn" data-action="read">READ</button>
-          <button class="action-btn" data-action="use">USE</button>
-          <button class="action-btn" data-action="note">NOTE</button>
-        </div>
+        <div id="action-bar"></div>
       </div>
       <div id="inventory-bar">
         <span class="inv-label">🎒</span>
@@ -176,7 +173,9 @@ export class GameUI {
   private focus: FocusState = { itemId: null, isInventory: false };
   private usePending: string | null = null;
   private epilogueShown = false;
+  private inputLocked = false;
   private itemOrderCache: { roomId: string; order: string[] } | null = null;
+  private lastFocusedItemId: string | null = null;
 
   constructor(_container: HTMLElement, game: Game, audio: AudioEngine, callbacks: UICallbacks) {
     this.game = game;
@@ -208,26 +207,29 @@ export class GameUI {
   private wireEvents(): void {
     this.dpadEl.querySelectorAll('.dpad-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
+        if (this.inputLocked) return;
         const dir = (e.currentTarget as HTMLElement).dataset.dir as Direction | undefined;
         if (!dir) return;
         this.audio.playSfx('footstep');
         const result = this.callbacks.onNavigate(dir);
         this.usePending = null;
         if (result.movementChanged) {
-          await this.showMovementTransition(result.transitionOut, result.transitionIn);
+          await this.runMovementSequence(result.text, result.transitionOut, result.transitionIn);
+        } else {
+          this.refreshFromGame();
+          await this.showResultText(result.text);
         }
-        this.refreshFromGame();
-        this.showResultText(result.text);
         this.maybeShowEpilogue();
       });
     });
 
-    this.actionBarEl.querySelectorAll('.action-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const action = (e.currentTarget as HTMLElement).dataset.action as ActionType | undefined;
-        if (!action) return;
-        this.handleAction(action);
-      });
+    this.buildActionBar();
+    this.actionBarEl.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('.action-btn') as HTMLElement | null;
+      if (!btn) return;
+      const action = btn.dataset.action as ActionType | undefined;
+      if (!action) return;
+      this.handleAction(action);
     });
 
     this.saveBtnEl.addEventListener('click', () => {
@@ -244,28 +246,32 @@ export class GameUI {
     document.addEventListener('click', async (e) => {
       const target = e.target as HTMLElement;
       if (target.classList.contains('item-chip')) {
+        if (this.inputLocked) return;
         const itemId = target.dataset.itemId;
         if (!itemId) return;
         if (this.usePending) {
           const result = this.callbacks.onUseItemOnRoom(this.usePending, itemId);
           this.usePending = null;
           if (result.movementChanged) {
-            await this.showMovementTransition(result.transitionOut, result.transitionIn);
+            await this.runMovementSequence(result.text, result.transitionOut, result.transitionIn);
             this.focus = { itemId: null, isInventory: false };
+          } else {
+            this.refreshFromGame();
+            await this.showResultText(result.text);
           }
-          this.refreshFromGame();
-          this.showResultText(result.text);
           this.maybeShowEpilogue();
           return;
         }
         this.focusItem(itemId);
       }
       if (target.classList.contains('inv-chip')) {
+        if (this.inputLocked) return;
         const itemId = target.dataset.itemId;
         if (!itemId) return;
         this.focusInventoryItem(itemId);
       }
       if (target.classList.contains('journal-chip')) {
+        if (this.inputLocked) return;
         this.showJournalViewer();
       }
     });
@@ -312,9 +318,9 @@ export class GameUI {
       this.focus = { itemId: null, isInventory: false };
       this.usePending = null;
       this.refreshFromGame();
-      this.textRenderer.clear();
+      // Append, don't clear. The text pane grows; transitions clear by overlaying.
       const lookText = this.game.getLookTextForCurrentRoom();
-      this.showResultText(lookText);
+      await this.showResultText(lookText);
       return;
     }
 
@@ -327,11 +333,15 @@ export class GameUI {
     const itemId = this.focus.itemId ?? undefined;
     const result = this.callbacks.onAct(action, itemId);
     if (result.movementChanged) {
-      await this.showMovementTransition(result.transitionOut, result.transitionIn);
+      // Keep the old room's font/items on screen until the player taps
+      // through the overlay. The transition is supposed to feel like a
+      // crossing, not a swap.
+      await this.runMovementSequence(result.text, result.transitionOut, result.transitionIn);
       this.focus = { itemId: null, isInventory: false };
+    } else {
+      this.refreshFromGame();
+      await this.showResultText(result.text);
     }
-    this.refreshFromGame();
-    this.showResultText(result.text);
     this.maybeShowEpilogue();
 
     if (action === 'take' && this.focus.itemId) {
@@ -347,6 +357,7 @@ export class GameUI {
     const item = this.game.getItem(itemId);
     if (!item) return;
     this.focus = { itemId, isInventory: false };
+    this.lastFocusedItemId = itemId;
     this.usePending = null;
     this.renderFocusLine();
     this.renderActions();
@@ -406,7 +417,7 @@ export class GameUI {
     const roomId = this.snapshot.roomId;
     // Shuffle order is computed once per room visit and kept until the
     // player moves elsewhere. Items appearing or disappearing mid-visit are
-    // appended at the end in their natural order.
+    // inserted next to the parent item (the one the player just focused).
     if (!this.itemOrderCache || this.itemOrderCache.roomId !== roomId) {
       const shuffled = items.map(i => i.id);
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -414,16 +425,32 @@ export class GameUI {
         [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
       }
       this.itemOrderCache = { roomId, order: shuffled };
+      this.lastFocusedItemId = null;
     }
     const order = this.itemOrderCache.order;
-    const ordered = order
-      .map(id => items.find(i => i.id === id))
-      .filter((i): i is typeof items[number] => Boolean(i));
     const newItems = items.filter(i => !order.includes(i.id));
     if (newItems.length > 0) {
-      this.itemOrderCache.order = [...order, ...newItems.map(i => i.id)];
+      // Insert new items immediately after the last item the player focused,
+      // so OPEN→reveal puts the new chip adjacent to its parent.
+      const parentIdx = this.lastFocusedItemId
+        ? order.indexOf(this.lastFocusedItemId)
+        : -1;
+      if (parentIdx >= 0) {
+        this.itemOrderCache.order = [
+          ...order.slice(0, parentIdx + 1),
+          ...newItems.map(i => i.id),
+          ...order.slice(parentIdx + 1),
+        ];
+      } else {
+        this.itemOrderCache.order = [...order, ...newItems.map(i => i.id)];
+      }
     }
-    const finalList = [...ordered, ...newItems];
+    // Re-derive ordered list against the updated cache so newly-inserted
+    // items appear in their correct neighbor position.
+    const finalOrder = this.itemOrderCache.order;
+    const finalList = finalOrder
+      .map(id => items.find(i => i.id === id))
+      .filter((i): i is typeof items[number] => Boolean(i));
 
     this.itemListEl.innerHTML = finalList.map(i =>
       `<button class="item-chip" data-item-id="${i.id}">${i.name}</button>`
@@ -442,6 +469,23 @@ export class GameUI {
       const item = this.game.getItem(this.focus.itemId);
       this.focusLineEl.textContent = item ? `» ${item.name}` : '';
     }
+  }
+
+  private buildActionBar(): void {
+    const labels: Record<ActionType, string> = {
+      look: 'LOOK',
+      open: 'OPEN',
+      take: 'TAKE',
+      push: 'PUSH',
+      examine: 'EXAMINE',
+      use: 'USE',
+      note: 'NOTE',
+    };
+    const actions = this.snapshot.actions ?? ['look', 'open', 'take', 'examine', 'use', 'note'];
+    this.actionBarEl.innerHTML = actions
+      .map(a => `<button class="action-btn" data-action="${a}">${labels[a]}</button>`)
+      .join('');
+    this.actionBarEl.dataset.count = String(actions.length);
   }
 
   private renderActions(): void {
@@ -476,10 +520,31 @@ export class GameUI {
     this.inventoryBarEl.innerHTML = journalChip + itemChips;
   }
 
-  private showResultText(text: string): void {
+  private setInputLocked(locked: boolean): void {
+    this.inputLocked = locked;
+    const layout = document.getElementById('game-layout');
+    if (layout) layout.classList.toggle('input-locked', locked);
+  }
+
+  // Movement-crossing sequence. Locks input up front, lets the current text
+  // finish, fades in the overlay, waits for the tap, then clears the pane and
+  // swaps font/items/audio so the new movement only "arrives" after the player
+  // has chosen to step through.
+  private async runMovementSequence(resultText: string, transitionOut?: string, transitionIn?: string): Promise<void> {
+    this.setInputLocked(true);
+    await this.showResultText(resultText);
+    await this.showMovementTransition(transitionOut, transitionIn);
+    this.textRenderer.clear();
+    this.refreshFromGame();
+    this.callbacks.onMovementApplied?.();
+    await this.showResultText(this.snapshot.description);
+    this.setInputLocked(false);
+  }
+
+  private async showResultText(text: string): Promise<void> {
     if (!text) return;
     this.textRenderer.skip();
-    this.textRenderer.show(text, true);
+    await this.textRenderer.show(text, true);
   }
 
   async showPrologue(text: string): Promise<void> {

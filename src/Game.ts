@@ -7,6 +7,15 @@ const SAVE_KEY_PREFIX = 'egz_save_';
 
 const EMPTY_PERSPECTIVE: Perspective = { entry: '', look: '', items: [] };
 
+// Render an item or noun name with the right article. Item names that already
+// begin with an article ("the X", "a X", "your X") pass through. Proper nouns
+// (capital letter) pass through. Otherwise prepend "the ".
+function articulate(name: string): string {
+  if (/^(the|a|an|your|his|her) /i.test(name)) return name;
+  if (/^[A-Z]/.test(name)) return name;
+  return `the ${name}`;
+}
+
 function keyFor(mode: Mode, side: Side, chapterId: string): string {
   if (mode === 'together') return `${SAVE_KEY_PREFIX}together_${side}_${chapterId}`;
   return `${SAVE_KEY_PREFIX}solo_${chapterId}`;
@@ -242,10 +251,10 @@ export class Game {
       return this.handleTake(item);
     }
 
-    if (action === 'read') {
-      if (item.onAction?.read) {
+    if (action === 'examine') {
+      if (item.onAction?.examine) {
         const ctx = this.makeContext(item.id);
-        const result = item.onAction.read(ctx);
+        const result = item.onAction.examine(ctx);
         this.applyEffects(result.effects);
         return { text: result.text };
       }
@@ -259,7 +268,7 @@ export class Game {
         this.applyEffects(result.effects);
         return { text: result.text };
       }
-      return { text: `You can't open the ${item.name}.` };
+      return { text: `You can't open ${articulate(item.name)}.` };
     }
 
     if (action === 'push') {
@@ -269,7 +278,7 @@ export class Game {
         this.applyEffects(result.effects);
         return { text: result.text };
       }
-      return { text: `Pushing the ${item.name} does nothing.` };
+      return { text: `Pushing ${articulate(item.name)} does nothing.` };
     }
 
     if (action === 'use') {
@@ -279,7 +288,7 @@ export class Game {
         this.applyEffects(result.effects);
         return { text: result.text };
       }
-      return { text: `Using the ${item.name} does nothing.` };
+      return { text: `${articulate(item.name)} is not for using like that.` };
     }
 
     if (action === 'note') {
@@ -289,10 +298,10 @@ export class Game {
         this.applyEffects(result.effects);
         return { text: result.text };
       }
-      return { text: `Nothing worth noting about the ${item.name}.` };
+      return { text: `Nothing worth noting about ${articulate(item.name)}.` };
     }
 
-    return { text: `You can't do that with the ${item.name}.` };
+    return { text: `Nothing to do with ${articulate(item.name)} that way.` };
   }
 
   useInventoryItemOnRoom(invItemId: string, targetItemId: string): {
@@ -335,8 +344,8 @@ export class Game {
   }
 
   private handleTake(item: { id: string; name: string; takeable: boolean; inventory: { label: string; examine: string } }): { text: string } {
-    if (!item.takeable) return { text: `You can't take the ${item.name}.` };
-    if (this.state.inventory.includes(item.id)) return { text: `You already have the ${item.name}.` };
+    if (!item.takeable) return { text: `You can't take ${articulate(item.name)}.` };
+    if (this.state.inventory.includes(item.id)) return { text: `You already have ${articulate(item.name)}.` };
     this.state.inventory.push(item.id);
     if (!this.state.roomStates[this.state.currentRoom]) {
       this.state.roomStates[this.state.currentRoom] = { visited: true, itemsRemoved: [] };
@@ -517,7 +526,7 @@ export class Game {
         return { id, label: id };
       }),
       exits: room.exits.filter(e => !e.blockedBy || this.state.flags[e.blockedBy]).map(e => e.direction),
-      actions: ['look', 'open', 'take', 'read', 'use', 'note'],
+      actions: this.chapter.actionSet ?? ['look', 'open', 'take', 'examine', 'use', 'note'],
       completed: this.state.completed,
       cast: this.chapter.cast,
       hasJournal: Boolean(this.chapter.usesJournal),
