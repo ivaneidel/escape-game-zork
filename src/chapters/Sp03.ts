@@ -37,7 +37,7 @@ function decoy(id: string, name: string, examine: string): Item {
 export const Sp03: Chapter = {
   id: 'sp03',
   title: 'The Selection',
-  contentVersion: 1,
+  contentVersion: 2,
   actionSet: ['look', 'open', 'examine', 'use', 'note'],
   starts: {
     dreamer: 'tomas-desk-finishing',
@@ -86,7 +86,7 @@ A different room takes shape under your hands.`,
       transitionIn: `A small hallway. A telephone on a shelf. A bulb that is half-lit and not flickering — halved. Three coats on a rack. The smell of bread from somewhere below.
 
 The dream is unstable. The phone is ringing. The phone has rung. The phone has not rung yet.`,
-      transitionOut: `He lifts the receiver. A voice — Russian, distant, careful — tells him the panel is at ten on Wednesday. He does not say anything back.
+      transitionOut: `He lifts the receiver. A voice — Russian, distant, careful — tells him he is expected at ten on Wednesday. Medical first, then the panel an hour after. He does not say anything back.
 
 The dream cuts to a different city.`,
     },
@@ -97,7 +97,7 @@ The dream cuts to a different city.`,
       rooms: ['hotel-room-1963', 'panel-corridor', 'medical-room-1963', 'panel-room-1963'],
       transitionIn: `A hotel room with one window onto a side street. The basin is full. He has not slept well. The itinerary on the desk is typed in someone else's hand.
 
-The central city. The morning of the 6th. The panel at ten.`,
+The central city. The morning of the 6th. The day on paper.`,
       transitionOut: `He signs. The captain countersigns without lifting his eyes for long. The civilian writes in his notebook. The surgeon does not look up.
 
 He stands. The trance unhooks at the threshold of the room.`,
@@ -177,6 +177,9 @@ You set your fingers on the keys.`,
                 if (!ctx.flags['p3.journal-reread']) {
                   return { text: `Your fingers are on the keys. Not yet. There are still things to do here.` };
                 }
+                if (!ctx.flags['p3.morning-settled']) {
+                  return { text: `Your fingers are on the keys. Not yet. There are still things to do here.` };
+                }
                 return {
                   text: `You type. The sentence you have known for a week lands cleanly. You strike the period. The carriage clicks.
 
@@ -205,7 +208,7 @@ A different room takes shape under your hands.`,
                 return {
                   text: `You read back. The August 1962 pages, the Maria pages, the bird, the song running backward through people. You stop where you stopped last.
 
-The man whose life you have been inside for two chapters does not have a name in the journal. You have called him "him" and "the cosmonaut" and "Andrei's husband once." You have not written *Andrei*.
+The man whose life you have been inside twice now — once at night, once in the chair, in daylight — does not have a name in the journal. You have called him "him" and "the cosmonaut" and "Andrei's husband once." You have not written *Andrei*.
 
 You will, today. You sit back and the page is warm under your hand.`,
                   effects: [{ setFlags: { 'p3.journal-reread': true } }],
@@ -251,18 +254,34 @@ You will, today. You sit back and the page is warm under your hand.`,
         entry: `The corner of the kitchen where the radiator is. The radiator clanks the way old radiators clank when they have been on too long without warning. The kettle is cold. The radio is silent on the same station the dial was on a week ago.`,
         look: `The radiator clanking. The cold kettle. The silent radio. The kitchen window onto the same courtyard. The doorway south, back to the desk.`,
         items: [
-          atmoRead(
-            'radiator-prologue',
-            'the radiator',
-            'Cast iron. Painted over twice. Hot. The building turned the heat on overnight without telling anyone.',
-            `You put a hand on it and take it off. It is hotter than it should be. It is what the building has decided.`
-          ),
-          atmoRead(
-            'kitchen-radio-prologue-3',
-            'the radio',
-            'On the same station the dial was on a week ago. Silent — the station does not broadcast at this hour.',
-            `You will not turn it on. You have not yet earned the silence breaking.`
-          ),
+          {
+            id: 'radiator-prologue',
+            name: 'the radiator',
+            examine: 'Cast iron. Painted over twice. Hot. The building turned the heat on overnight without telling anyone.',
+            actions: ['examine'],
+            takeable: false,
+            inventory: { label: '', examine: '' },
+            onAction: {
+              examine: () => ({
+                text: `You put a hand on it and take it off. It is hotter than it should be. It is what the building has decided. The kitchen settles around you while you stand there. The morning is real.`,
+                effects: [{ setFlags: { 'p3.morning-settled': true } }],
+              }),
+            },
+          },
+          {
+            id: 'kitchen-radio-prologue-3',
+            name: 'the radio',
+            examine: 'On the same station the dial was on a week ago. Silent — the station does not broadcast at this hour.',
+            actions: ['examine'],
+            takeable: false,
+            inventory: { label: '', examine: '' },
+            onAction: {
+              examine: () => ({
+                text: `You will not turn it on. You have not yet earned the silence breaking. You stand at the counter a moment. The morning is real.`,
+                effects: [{ setFlags: { 'p3.morning-settled': true } }],
+              }),
+            },
+          },
           atmoRead(
             'kitchen-window-prologue-3',
             'the kitchen window',
@@ -315,7 +334,7 @@ The phone is ringing. The phone has rung. The phone has not rung yet.`,
                   return { text: `Your hand is on the receiver. Not yet. The dream is not finished with you yet.` };
                 }
                 return {
-                  text: `He lifts the receiver. The line is clear at one end and not at the other. A man's voice, careful, distant: *"Voronin. The panel is at ten on Wednesday. Be at the hotel by Tuesday evening. The room is in your name."*
+                  text: `He lifts the receiver. The line is clear at one end and not at the other. A man's voice, careful, distant: *"Voronin. You're expected at ten on Wednesday. Medical first, the panel an hour after. Be at the hotel by Tuesday evening. The room is in your name."*
 
 He says nothing. He sets the receiver back. The hallway tilts.`,
                   effects: [
@@ -347,7 +366,7 @@ He says nothing. He sets the receiver back. The hallway tilts.`,
             'halved-bulb',
             'the ceiling bulb',
             'Halved. Not flickering — halved. The light only reaches the left wall.',
-            `Dream-logic. He does not look up at it for long.`
+            `He does not look up at it for long. The right side of the room is darker than the left, and he accepts this without question.`
           ),
           atmoRead(
             'hallway-doormat',
@@ -485,7 +504,7 @@ He puts it down. The seal stays.`,
       dreamer: {
         entry: `The closed bedroom door. Yelena is asleep behind it, or Nina is, or both. Through the wood, very faintly, a child is singing in her sleep.
 
-The handle does not turn. Dream-logic. The door is not the puzzle.`,
+The handle does not turn under his hand. He does not press harder.`,
         look: `The closed door. A small shoe on the floor outside it. The faint song from behind the door.`,
         items: [
           {
@@ -652,14 +671,14 @@ A printed card is pinned at eye height on the wall opposite the bench.`,
     Discretion.
     Distance.
 
-The same three lines. Printed slightly larger here than at the range, on heavier paper. The institution carries it from city to city.`,
+Three lines on heavier paper than usual. Andrei reads them once and looks away.`,
               }),
               note: (ctx: ActionContext) => {
                 if (ctx.journal.some(j => j.id === 'three-words-1963')) {
-                  return { text: `Already in the journal. The slogan, the third room in three chapters.` };
+                  return { text: `Already in the journal. The slogan, the third time I have seen it.` };
                 }
                 return {
-                  text: `You record it. Third occurrence in three chapters. The institution carries it.`,
+                  text: `You record it. The same three lines, in a third room, in a third year.`,
                   effects: [{
                     addJournalEntry: {
                       id: 'three-words-1963',
@@ -914,7 +933,7 @@ Andrei answers the question. The numbers are what the numbers are. Drozdov nods.
                         label: 'His name. Andrei Voronin.',
                         body: `The acceptance form in the panel room: typewritten in capitals — VORONIN, A. — TEST PILOT, RANGE SQUADRON.
 
-I have known the cosmonaut by face since the first night. I have known him by friend since the second chapter. I have known him by wife and child since this morning. I have not written his name. I am writing it now.
+I have known the cosmonaut by face since the first night I dreamed him. I have known him by friend since the August trance at the range. I have known him by wife and child since this morning. I have not written his name. I am writing it now.
 
 His name is Andrei Voronin. He has had this name all along. I will not stop using it.`,
                       },
@@ -1421,7 +1440,7 @@ The train is moving. The upper berth is empty.`,
                     addJournalEntry: {
                       id: 'route-to-the-boundary',
                       label: 'The route ends at the boundary',
-                      body: `On the folded map on the train table: Andrei has pencilled the route east. The line ends at the boundary of the closed-territory blank. The map is blank past it — not faded, not absent, blank. He has drawn the route as far as the institution allows him to know it. The dream from M1 had the route already drawn in by someone else, going further. The waking map ends where it must.`,
+                      body: `On the folded map on the train table: Andrei has pencilled the route east. The line ends at the boundary of the closed-territory blank. The map is blank past it — not faded, not absent, blank. He has drawn the route as far as the institution allows him to know it. The dream-version of his study had the same map with the route already drawn in by someone else, going further. The waking map ends where it must.`,
                     },
                   }],
                 };
@@ -1654,7 +1673,7 @@ The radiator clanks. The kitchen radio is on low, somewhere east.`,
             inventory: { label: '', examine: '' },
             onAction: {
               examine: () => ({
-                text: `You read back. The wait, the panel, the kitchen, the train. Three chapters in. His name. Andrei. The cosmonaut has been a man with a face since the first night. He has been a man with a friend since the second chapter. He has been a man with a wife and a daughter since today. He has a name now.
+                text: `You read back. The wait, the panel, the kitchen, the train. His name. Andrei. The cosmonaut has been a man with a face since the first night you dreamed him. He has been a man with a friend since the August trance at the range. He has been a man with a wife and a daughter since today. He has a name now.
 
 You underline the cursive a third time. You write the name in capitals beside it: VORONIN, A. You write the name in cursive beneath: Andrei Voronin.`,
               }),
