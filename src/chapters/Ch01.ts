@@ -26,7 +26,7 @@ function atmoRead(id: string, name: string, examine: string, readText: string): 
 export const Ch01: Chapter = {
   id: 'ch01',
   title: 'The Apollo',
-  contentVersion: 2,
+  contentVersion: 3,
   actionSet: ['look', 'open', 'take', 'examine', 'use', 'push'],
   starts: {
     dreamer: 'dressing-room-arrival',
@@ -72,7 +72,7 @@ You are between, again.`,
       title: 'The Running Order',
       mode: 'neutral',
       rooms: ['dressing-prep', 'stage-wing-prep', 'workshop-prep', 'back-office'],
-      transitionIn: `Ninety minutes to curtain. The props need to be in the wings. The cues need to be confirmed. You and your partner are in different rooms; you will have to talk.`,
+      transitionIn: `Ninety minutes to curtain. The props need to be in the wings. The cues need to be confirmed. The two halves of the work are in two rooms tonight.`,
       transitionOut: `The cue list and the wing table agree. One thing is in its place.`,
     },
     {
@@ -227,7 +227,7 @@ The workshop sharpens around you. You have work to do.`,
             'chalkboard-arrival-prologue',
             'the chalkboard',
             "Tonight's running order in Emil's neat hand. Four cues. You have read it three times already.",
-            `Four cues. Four props. The new piece is on the sheet at twenty thirty-six. You have not unscored it. You will not.`
+            `Four cues. Four props. The new piece opens the night at twenty hundred — you put it there. You have not unscored it. You will not.`
           ),
           {
             id: 'workshop-lamp-prologue',
@@ -258,7 +258,7 @@ The workshop sharpens around you. You have work to do.`,
       dreamer: {
         entry: `The mirror bulbs are on now. The amber catches the rim of the decanter, the velvet on the rack, the small photograph of Liesl. The notebook on the vanity is open and waits. You have eighty-eight minutes.
 
-Through the wall you hear the orchestra beginning to rehearse. East through the corridor: the stage-left wing, where the props are being laid.`,
+Through the wall you hear the orchestra beginning to rehearse. A corridor runs off the dressing room toward the wings where the props are being laid.`,
         look: `The vanity, the mirror, the velvet on the rack. The decanter. The notebook open. The radiator clanking. Emil's jacket on the chair-back. The corridor east.`,
         items: [
           atmoRead(
@@ -396,12 +396,12 @@ You touch each in turn. They know your hands.`,
                 { id: 'new-warm',      label: 'the new warm-handled one' },
               ],
               correct: {
-                'pos-1': 'heavy-cold',
+                'pos-1': 'new-warm',
                 'pos-2': 'camphor-felt',
                 'pos-3': 'small-fingers',
-                'pos-4': 'new-warm',
+                'pos-4': 'heavy-cold',
               },
-              prompt: 'Arrange the props in cue order, by feel. Your partner has the printed cue list.',
+              prompt: 'Arrange the props in cue order, by feel. The cue list is downstairs — you cannot read it from up here.',
               onSolve: () => ({
                 text: `Each prop settles into its place. The cabinet is heavy in the first position; the bell is wrapped where it should be; the silks lift toward the third; the new piece sits warm in the fourth. The table is set.
 
@@ -426,7 +426,7 @@ You step back. You have eighty-two minutes.`,
       reckoner: {
         entry: `The workshop sharpened by the lamp. The workbench laid out for the night. The chalkboard with the cue order. The safety binder on its shelf. The cooled forge.
 
-East through the small door: the manager's back office.`,
+A small door at the side wall leads to the manager's back office.`,
         look: `The chalkboard with the cue order. The workbench with the apparatus mid-assembly. The safety binder. The program. The forge. The door east.`,
         items: [
           {
@@ -434,17 +434,17 @@ East through the small door: the manager's back office.`,
             name: 'the chalkboard',
             examine: `Tonight's cue order, in Emil's hand:
 
-  20:00 — Cabinet (V1)
+  20:00 — Cabinet (V2 — prototype)
   20:12 — Bell
   20:24 — Silks
-  20:36 — Cabinet (V2 — prototype)
+  20:36 — Cabinet (V1)
 
-The fourth cue is the prototype.`,
+The prototype opens tonight. You put it there yourself.`,
             actions: ['examine'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({ text: `Four cues. Four props. The V2 prototype is on tonight\'s sheet. You have not crossed it off. You will not.` }),
+              examine: () => ({ text: `Four cues. Four props. The V2 prototype goes up first — the headliner slot. You wrote the order. You have not crossed it off. You will not.` }),
             },
           },
           atmoRead(
@@ -462,9 +462,9 @@ The fourth cue is the prototype.`,
             inventory: { label: 'Safety binder', examine: 'Safety certificates, this season.' },
             onAction: {
               examine: () => ({
-                text: `Most-recent entry, 14 days ago: "Cabinet (V1) apparatus inspected. Counterweight bolt shows wear — replace before next tour." Initialled E.R.
+                text: `Most-recent formal entry, 14 days ago: "Cabinet (V1) apparatus inspected. Counterweight bolt shows wear — replace before next tour." Initialled E.R.
 
-No certificate exists for the V2 prototype. You did not request one.`,
+No certificate exists for the V2 prototype. You walked under it last week, alone. You did not write it down.`,
               }),
             },
           },
@@ -477,12 +477,12 @@ No certificate exists for the V2 prototype. You did not request one.`,
           {
             id: 'running-order-program-m1',
             name: 'the evening program',
-            examine: `A typewritten program for tonight's performance, printed by the management. Same four cues as the chalkboard. The V2 is listed simply as "The Cabinet" without distinguishing it from the V1.`,
+            examine: `A typewritten program for tonight's performance, printed by the management. The opening cue is "The Cabinet" — the management has not been told it is the prototype.`,
             actions: ['examine', 'take'],
             takeable: true,
             inventory: { label: 'Program', examine: 'Tonight\'s typewritten program. Four cues.' },
             onAction: {
-              examine: () => ({ text: `The management has not been told the V2 is a prototype. They have been told the cabinet is the cabinet.` }),
+              examine: () => ({ text: `The management has not been told the V2 is a prototype. They have been told the cabinet is the cabinet. The opener is "The Cabinet." Tonight that is the new one.` }),
             },
           },
         ],
@@ -555,7 +555,7 @@ You do not know which V. There are several. You leave it.` }),
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({ text: `The four blank fields beside the four cue times. The formal prop names belong in them — and the prop at each wing position is your partner\'s knowledge to share.` }),
+              examine: () => ({ text: `The four blank fields beside the four cue times. The formal prop names belong in them — but which name at which time depends on what is laid out at the wing table, and the wing table is upstairs.` }),
             },
             device: {
               kind: 'slot-assign',
@@ -573,12 +573,12 @@ You do not know which V. There are several. You leave it.` }),
                 { id: 'cabinet-v2', label: 'The Cabinet (V2 — prototype)' },
               ],
               correct: {
-                't-2000': 'cabinet',
+                't-2000': 'cabinet-v2',
                 't-2012': 'bell',
                 't-2024': 'silks',
-                't-2036': 'cabinet-v2',
+                't-2036': 'cabinet',
               },
-              prompt: 'Match the formal prop names to the cue times. Your partner has the props by feel in the wings.',
+              prompt: 'Match the formal prop names to the cue times. The wing-table is upstairs — you cannot see it from down here.',
               onSolve: () => ({
                 text: `The form is complete. Each cue time has its prop. You initial the bottom. The stage manager will collect it.
 
@@ -670,7 +670,7 @@ Eight pages. One of them is the page he wrote about.`,
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({ text: `Your partner has the letter Maestro wrote you. The letter refers to one of these pages. You will need to know which.` }),
+              examine: () => ({ text: `Maestro Levin's letter is downstairs on the workshop bench. The letter refers to one of these pages. You will need to know which.` }),
             },
             device: {
               kind: 'slot-assign',
@@ -689,7 +689,7 @@ Eight pages. One of them is the page he wrote about.`,
                 { id: 'hand-key',        label: 'an open hand offering a key' },
               ],
               correct: { 'page': 'bird-broken-cup' },
-              prompt: "Maestro Levin's letter — which your partner is reading — refers to one of these pages.",
+              prompt: "Maestro Levin's letter refers to one of these pages. The letter is downstairs in the workshop.",
               onSolve: () => ({
                 text: `Your hand settles on the page. The bird, the cup, the cramped marginalia. Beneath the drawing, in Maestro's precise hand:
 
@@ -726,11 +726,9 @@ You read it twice. You read it a third time.`,
               examine: () => ({
                 text: `Two pages, the ink a little faded.
 
-"…you will find what you need on the page with the bird and the broken cup. Do not skip the marginalia. The maxim there is the one I taught you in your first year — and the one you will, when you are honest with yourself, have already broken. Read it again. Read it tonight. Read it before every rise of the curtain.
+"…you will find what you need on the page with the bird and the broken cup. Do not skip the marginalia. The maxim there is the one I taught you in your first year — and the one you will, when you are honest with yourself, have already broken. Read it again. Read it tonight. Read it before every rise of the curtain."
 
-Never build what you cannot dismantle alone."
-
-The maxim closes the letter. The page reference opens it.`,
+He does not write the maxim out. He knew you would have to look at the page.`,
               }),
             },
           },
@@ -774,7 +772,7 @@ The maxim closes the letter. The page reference opens it.`,
             onAction: {
               examine: () => ({ text: `"Never build what you cannot ___ ___."
 
-Two words. The notebook page your partner has open carries the canonical form.` }),
+Two words. The notebook upstairs in the dressing room carries the canonical form.` }),
             },
             device: {
               kind: 'slot-assign',
@@ -795,7 +793,7 @@ Two words. The notebook page your partner has open carries the canonical form.` 
                 { id: 'safely',    label: 'safely' },
               ],
               correct: { 'w1': 'dismantle', 'w2': 'alone' },
-              prompt: 'Complete the maxim. Your partner has the page open with its exact wording.',
+              prompt: 'Complete the maxim. The notebook upstairs in the dressing room carries the canonical form.',
               onSolve: () => ({
                 text: `The maxim closes. "Never build what you cannot dismantle alone."
 
@@ -879,7 +877,7 @@ This is where you come to listen when you need to listen carefully.`,
             'nook-wall',
             'the thin wall',
             "Your hand on the plaster. The music is right there. You can feel the rhythm through the wall.",
-            `Your fingers count. The downbeat is here.`
+            `Your fingers count from the opening. The vanish cue lands one bar earlier than the conductor's first mark — the renumber held. The piece told you. The piece always tells you.`
           ),
           {
             id: 'nook-emils-note',
@@ -887,7 +885,7 @@ This is where you come to listen when you need to listen carefully.`,
             examine: `Tucked behind the mirror. You did not know it was there. It is in his hand.`,
             actions: ['examine', 'take'],
             takeable: true,
-            inventory: { label: "Emil's note", examine: "A folded note in Emil's hand." },
+            inventory: { label: "a paper warm from his hand", examine: "A folded paper, warm from where it sat behind the mirror. His handwriting on it." },
             onAction: {
               examine: () => ({
                 text: `"A. — please don't test the new Cabinet tonight. Not without me checking it first. The counterweight isn't the same as the old one. The release is on the wrong side. You'll reach for it where it used to be, and your hand will find nothing.
@@ -897,19 +895,18 @@ I know you don't want to hear this. But I promised him I'd keep you safe.
 — E."
 
 You fold it back. You leave it in the mirror. You do not change your mind.`,
-                effects: [{ setFlags: { 'ch01.dreamer.emils-note-seen': true } }],
               }),
             },
           },
           {
             id: 'melody-beat',
             name: 'the cue-beat marker',
-            examine: `A small wooden lever mounted in the nook beside the wall. One position from 1 to 8. The conductor's beats for the bar where the cue lands. You can hear the music through the plaster; your partner has the downbeat annotation on the score.`,
+            examine: `A small wooden lever mounted in the nook beside the wall. One position from 1 to 8. The conductor's beats for the bar where the cue lands. You can hear the music through the plaster; the downbeat annotation is on the score, far away in the pit.`,
             actions: ['examine', 'open'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({ text: `You will need to know which beat of the bar the cue lands on. Your partner has it written.` }),
+              examine: () => ({ text: `You will need to know which beat of the bar the cue lands on. The score has the annotation; the score is in the pit.` }),
             },
             device: {
               kind: 'combination',
@@ -942,7 +939,7 @@ The hour continues.`,
       reckoner: {
         entry: `The edge of the orchestra pit, stage-right. A waist-high rail. You can see the conductor below at his stand. He is rehearsing the aria — Fauré's Pavane. He marks something on the score, frowns, keeps going.
 
-East along the rail: the small annexed conductor's stand where the score lies open.`,
+A small annexed conductor's stand sits along the rail.`,
         look: `The pit rail. The conductor visible below. A stagehand at the door. A program corner. The annexed stand east.`,
         items: [
           atmoRead(
@@ -996,9 +993,9 @@ The score is open. The dial for the cue is on the stand beside it.`,
               examine: () => ({
                 text: `At bar 47, in the conductor's hand: "VANISH CUE — downbeat of the third beat."
 
-But — he has crossed out a repeat earlier in the piece, at bars 44–49, and renumbered. The original bar 47 is now bar 46.
+But — he has crossed out a repeat earlier in the piece, at bars 44–49, and renumbered. The cue marker was not moved when he renumbered.
 
-The cue, corrected, is at bar 46. The beat-within-bar is still the third beat.`,
+You will need to know whether the cue follows the renumber, or stays at the original bar. The piece itself will tell you, if you can hear it.`,
               }),
             },
           },
@@ -1074,8 +1071,8 @@ Something is wrong. The air is off. A hum is missing or extra. You cannot say wh
           atmoRead(
             'final-cabinet-on-stage',
             'the cabinet (felt from here)',
-            'The new cabinet at centre stage. You feel it from the wings without seeing it clearly. Something is wrong somewhere near it. Low to the floor. Cold where it should be warm.',
-            `You step closer in the wings. The wrongness does not move.`
+            'The new cabinet at centre stage. You feel it from the wings without seeing it clearly. Something is wrong near it. You cannot say more without naming the region.',
+            `You step closer in the wings. The wrongness does not move. It is settled somewhere — you would know it if you walked past it.`
           ),
           atmoRead(
             'final-bell-on-table',
@@ -1109,7 +1106,7 @@ Something is wrong. The air is off. A hum is missing or extra. You cannot say wh
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({ text: `Your body will point. Your partner is below the stage now and will inspect the region you name.` }),
+              examine: () => ({ text: `Your body will point. The under-stage workshop is below; whoever is there will need to know the region.` }),
             },
             device: {
               kind: 'slot-assign',
@@ -1190,12 +1187,12 @@ Your partner above will tell you where to look. You will find it.`,
           {
             id: 'component-inspect',
             name: 'the fault to identify',
-            examine: `You will inspect the component your partner has narrowed to.`,
+            examine: `You will inspect the components narrowed to by the region the wings have surfaced.`,
             actions: ['examine', 'use'],
             takeable: false,
             inventory: { label: '', examine: '' },
             onAction: {
-              examine: () => ({ text: `Six components in the cabinet's underside region. Your partner is above the stage; she has told you where. You identify which one.` }),
+              examine: () => ({ text: `Six components in the cabinet's underside region. The wings above have the feeling of where; you have the schematic of what. You identify which one.` }),
             },
             device: {
               kind: 'slot-assign',
@@ -1204,12 +1201,12 @@ Your partner above will tell you where to look. You will find it.`,
                 { id: 'fault', label: 'The fault' },
               ],
               options: [
-                { id: 'counterweight-bolt', label: 'Counterweight bolt — slipped half an inch' },
-                { id: 'release-plate',     label: 'Release plate — secured' },
-                { id: 'hinge-pin',         label: 'Cabinet hinge pin — within tolerance' },
-                { id: 'trap-rope',         label: 'Trap rope — under-tensioned' },
-                { id: 'floor-cleat',       label: 'Floor cleat — secured' },
-                { id: 'cabinet-skirt',     label: 'Cabinet skirt — secured' },
+                { id: 'counterweight-bolt', label: 'Counterweight bolt (low, at the column base)' },
+                { id: 'release-plate',     label: 'Release plate (right side, mid-height)' },
+                { id: 'hinge-pin',         label: 'Cabinet hinge pin (upper-right corner)' },
+                { id: 'trap-rope',         label: 'Trap rope (overhead, behind the cabinet)' },
+                { id: 'floor-cleat',       label: 'Floor cleat (front-left, holding the cabinet down)' },
+                { id: 'cabinet-skirt',     label: 'Cabinet skirt (around the base, all sides)' },
               ],
               correct: { 'fault': 'counterweight-bolt' },
               prompt: 'Inspect the components in the indicated region. Identify the fault.',
