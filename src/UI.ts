@@ -1,4 +1,4 @@
-import type { Direction, ActionType, Side, Mode, GameSnapshot } from './types';
+import type { Direction, ActionType, Side, Mode, GameSnapshot, Device } from './types';
 import { TextRenderer } from './TextRenderer';
 import { Game } from './Game';
 import { AudioEngine } from './Audio';
@@ -24,12 +24,22 @@ export interface ActResult {
   movementChanged: boolean;
   transitionOut?: string;
   transitionIn?: string;
+  launchDevice?: { itemId: string; device: Device };
+}
+
+export interface DeviceSolveResult {
+  text: string;
+  correct: boolean;
+  movementChanged: boolean;
+  transitionOut?: string;
+  transitionIn?: string;
 }
 
 export interface UICallbacks {
   onNavigate: (dir: Direction) => NavigateResult;
   onAct: (action: ActionType, itemId?: string) => ActResult;
   onUseItemOnRoom: (invItemId: string, targetId: string) => ActResult;
+  onSolveDevice: (itemId: string, input: string | Record<string, string>) => DeviceSolveResult;
   onSave: () => void;
   onPickSide: (side: Side) => void;
   onPickMode: (mode: Mode) => void;
@@ -343,6 +353,15 @@ export class GameUI {
 
     const itemId = this.focus.itemId ?? undefined;
     const result = this.callbacks.onAct(action, itemId);
+    if (result.launchDevice) {
+      // Device interception: the engine returned a device spec instead of a
+      // text result. Launch the modal; the modal's submit path applies the
+      // engine effects and routes back through runMovementSequence /
+      // showResultText as if a normal handler had returned them.
+      await this.showDeviceModal(result.launchDevice.itemId, result.launchDevice.device);
+      this.maybeShowEpilogue();
+      return;
+    }
     if (result.movementChanged) {
       // Keep the old room's font/items on screen until the player taps
       // through the overlay. The transition is supposed to feel like a
@@ -645,6 +664,227 @@ export class GameUI {
         this.callbacks.onChapterComplete();
       }, 500);
     });
+  }
+
+  // Device modal — the cross-device puzzle primitive. See 011.
+  // The modal owns its local input state; on Submit it asks the engine
+  // whether the input is correct. Correct → runs onSolve effects, returns
+  // result through the standard movement-sequence / show-result paths.
+  // Wrong → shake feedback, modal stays open.
+  private showDeviceModal(itemId: string, device: Device): Promise<void> {
+    return new Promise(resolve => {
+      this.setInputLocked(true);
+      const overlay = document.createElement('div');
+      overlay.className = 'device-modal';
+      const prompt = device.prompt ?? '';
+      overlay.innerHTML = `
+        <div class="device-frame">
+          <div class="device-header">
+            <span class="device-title">${escapeHtml(prompt)}</span>
+            <button class="device-close" type="button" aria-label="Cancel">✕</button>
+          </div>
+          <div class="device-body"></div>
+          <div class="device-feedback" aria-live="polite"></div>
+          <div class="device-footer">
+            <button class="device-submit" type="button" disabled>Submit</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => overlay.classList.add('visible'));
+
+      const bodyEl = overlay.querySelector('.device-body') as HTMLElement;
+      const submitBtn = overlay.querySelector('.device-submit') as HTMLButtonElement;
+      const feedbackEl = overlay.querySelector('.device-feedback') as HTMLElement;
+      const frameEl = overlay.querySelector('.device-frame') as HTMLElement;
+
+      // Body builders return a getter that produces current input.
+      let getInput: () => string | Record<string, string> | null;
+      let isComplete: () => boolean;
+
+      if (device.kind === 'combination') {
+        ({ getInput, isComplete } = this.buildCombinationBody(bodyEl, device));
+      } else {
+        ({ getInput, isComplete } = this.buildSlotAssignBody(bodyEl, device));
+      }
+
+      const refreshSubmit = () => {
+        submitBtn.disabled = !isComplete();
+      };
+      bodyEl.addEventListener('click', () => refreshSubmit());
+      bodyEl.addEventListener('input', () => refreshSubmit());
+
+      let done = false;
+      const close = () => {
+        if (done) return;
+        done = true;
+        overlay.classList.remove('visible');
+        setTimeout(() => {
+          overlay.remove();
+          this.setInputLocked(false);
+          resolve();
+        }, 200);
+      };
+
+      overlay.querySelector('.device-close')!.addEventListener('click', close);
+
+      submitBtn.addEventListener('click', async () => {
+        const input = getInput();
+        if (input == null) return;
+        const result = this.callbacks.onSolveDevice(itemId, input);
+        if (!result.correct) {
+          feedbackEl.textContent = 'Not quite.';
+          frameEl.classList.remove('shake');
+          // re-add on next frame to retrigger the animation
+          requestAnimationFrame(() => frameEl.classList.add('shake'));
+          return;
+        }
+        // Correct. Close modal first, then flow the result text + any
+        // movement transition through the standard rendering paths.
+        done = true;
+        overlay.classList.remove('visible');
+        await new Promise<void>(r => setTimeout(() => { overlay.remove(); r(); }, 200));
+        this.setInputLocked(false);
+        if (result.movementChanged) {
+          await this.runMovementSequence(result.text, result.transitionOut, result.transitionIn);
+          this.focus = { itemId: null, isInventory: false };
+        } else {
+          this.refreshFromGame();
+          await this.showResultText(result.text);
+        }
+        resolve();
+      });
+    });
+  }
+
+  private buildCombinationBody(host: HTMLElement, device: Extract<Device, { kind: 'combination' }>): {
+    getInput: () => string;
+    isComplete: () => boolean;
+  } {
+    const digits = new Array(device.digits).fill(0);
+    const render = () => {
+      const cols = digits.map((d, i) => {
+        const label = device.labels?.[i] ?? '';
+        return `
+          <div class="combo-col">
+            <button class="combo-up" data-i="${i}" type="button">▲</button>
+            <div class="combo-digit" data-i="${i}">${d}</div>
+            <button class="combo-down" data-i="${i}" type="button">▼</button>
+            ${label ? `<div class="combo-label">${escapeHtml(label)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+      host.innerHTML = `<div class="combo-grid">${cols}</div>`;
+    };
+    render();
+
+    host.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const upBtn = target.closest('.combo-up') as HTMLElement | null;
+      const downBtn = target.closest('.combo-down') as HTMLElement | null;
+      if (upBtn) {
+        const i = parseInt(upBtn.dataset.i!);
+        digits[i] = (digits[i] + 1) % 10;
+        render();
+      }
+      if (downBtn) {
+        const i = parseInt(downBtn.dataset.i!);
+        digits[i] = (digits[i] + 9) % 10;
+        render();
+      }
+    });
+
+    return {
+      getInput: () => digits.join(''),
+      isComplete: () => true, // combination is always "complete" — every digit has a value
+    };
+  }
+
+  private buildSlotAssignBody(host: HTMLElement, device: Extract<Device, { kind: 'slot-assign' }>): {
+    getInput: () => Record<string, string> | null;
+    isComplete: () => boolean;
+  } {
+    // slot.id -> option.id (or undefined)
+    const assignments: Record<string, string | undefined> = {};
+    let activeSlot: string | null = null;
+
+    const render = () => {
+      const usedOptionIds = new Set(
+        Object.values(assignments).filter((v): v is string => Boolean(v))
+      );
+
+      const slotsHtml = device.slots.map(slot => {
+        const assigned = assignments[slot.id];
+        const assignedLabel = assigned
+          ? device.options.find(o => o.id === assigned)?.label ?? assigned
+          : '—';
+        const cls = activeSlot === slot.id ? 'slot-card active' : 'slot-card';
+        return `
+          <button class="${cls}" data-slot-id="${slot.id}" type="button">
+            <span class="slot-label">${escapeHtml(slot.label)}</span>
+            <span class="slot-value">${escapeHtml(assignedLabel)}</span>
+          </button>
+        `;
+      }).join('');
+
+      let optionsHtml = '';
+      if (activeSlot) {
+        const opts = device.options.map(opt => {
+          const taken = !device.multiOption && usedOptionIds.has(opt.id)
+            && assignments[activeSlot!] !== opt.id;
+          return `
+            <button class="slot-opt${taken ? ' taken' : ''}" data-opt-id="${opt.id}" type="button"${taken ? ' disabled' : ''}>
+              ${escapeHtml(opt.label)}
+            </button>
+          `;
+        }).join('');
+        optionsHtml = `
+          <div class="slot-options-panel">
+            <div class="slot-options-hint">Pick one for "${escapeHtml(device.slots.find(s => s.id === activeSlot)!.label)}":</div>
+            <div class="slot-options-list">${opts}</div>
+            ${assignments[activeSlot] ? `<button class="slot-clear" type="button">Clear this slot</button>` : ''}
+          </div>
+        `;
+      }
+
+      host.innerHTML = `
+        <div class="slot-grid">${slotsHtml}</div>
+        ${optionsHtml}
+      `;
+    };
+    render();
+
+    host.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const slotBtn = target.closest('.slot-card') as HTMLElement | null;
+      const optBtn = target.closest('.slot-opt:not(.taken)') as HTMLElement | null;
+      const clearBtn = target.closest('.slot-clear') as HTMLElement | null;
+      if (slotBtn) {
+        const id = slotBtn.dataset.slotId!;
+        activeSlot = activeSlot === id ? null : id;
+        render();
+      } else if (optBtn && activeSlot) {
+        assignments[activeSlot] = optBtn.dataset.optId!;
+        activeSlot = null;
+        render();
+      } else if (clearBtn && activeSlot) {
+        delete assignments[activeSlot];
+        render();
+      }
+    });
+
+    return {
+      getInput: () => {
+        const out: Record<string, string> = {};
+        for (const slot of device.slots) {
+          const v = assignments[slot.id];
+          if (!v) return null;
+          out[slot.id] = v;
+        }
+        return out;
+      },
+      isComplete: () => device.slots.every(s => Boolean(assignments[s.id])),
+    };
   }
 
   showMovementTransition(outText?: string, inText?: string): Promise<void> {
