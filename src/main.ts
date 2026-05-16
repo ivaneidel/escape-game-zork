@@ -115,6 +115,7 @@ function bootModeSelect(app: HTMLElement, audio: AudioEngine) {
     onNavigate: () => ({ text: '', roomChanged: false, movementChanged: false }),
     onAct: () => ({ text: '', movementChanged: false }),
     onUseItemOnRoom: () => ({ text: '', movementChanged: false }),
+    onSolveDevice: () => ({ text: '', correct: false, movementChanged: false }),
     onChapterComplete: () => {},
   };
 
@@ -303,6 +304,20 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
       game.save();
       return {
         text: result.text,
+        movementChanged: result.movementChanged,
+        transitionOut: result.previousMovement?.transitionOut,
+        transitionIn: result.currentMovement?.transitionIn,
+      };
+    },
+    onSolveDevice: (itemId: string, input: string | Record<string, string>) => {
+      const result = game.solveDevice(itemId, input);
+      if (result.roomChanged && !result.movementChanged) {
+        applyAmbient();
+      }
+      if (result.correct) game.save();
+      return {
+        text: result.text,
+        correct: result.correct,
         movementChanged: result.movementChanged,
         transitionOut: result.previousMovement?.transitionOut,
         transitionIn: result.currentMovement?.transitionIn,

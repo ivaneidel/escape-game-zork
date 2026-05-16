@@ -62,6 +62,33 @@ export interface ItemActionMap {
   note?: ActionHandler;
 }
 
+// Device modals (MP puzzle primitives). When an item declares a device, the
+// action named in device.invoke is owned by the device — tapping it opens a
+// modal lock. The legacy onAction[invoke] handler is ignored for that action.
+// See 011-mp-puzzle-primitives.md.
+export interface CombinationDevice {
+  kind: 'combination';
+  invoke: ActionType;
+  digits: number;
+  correct: string;
+  prompt?: string;
+  labels?: string[];
+  onSolve: ActionHandler;
+}
+
+export interface SlotAssignDevice {
+  kind: 'slot-assign';
+  invoke: ActionType;
+  slots: { id: string; label: string }[];
+  options: { id: string; label: string }[];
+  correct: Record<string, string>;
+  multiOption?: boolean;
+  prompt?: string;
+  onSolve: ActionHandler;
+}
+
+export type Device = CombinationDevice | SlotAssignDevice;
+
 export interface Item {
   id: string;
   name: string;
@@ -71,6 +98,7 @@ export interface Item {
   takeable: boolean;
   inventory: { label: string; examine: string };
   onAction?: ItemActionMap;
+  device?: Device;
 }
 
 export interface DescriptionCondition {
@@ -108,6 +136,9 @@ export interface Trigger {
   when: FlagCondition[];
   then: SideEffect[];
   once: boolean;
+  // If set, the trigger only fires when state.side matches. Used to author
+  // per-side chapter-complete gates in MP chapters (one trigger per side).
+  side?: Side;
 }
 
 export interface Movement {

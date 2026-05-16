@@ -1,6 +1,6 @@
 import type {
   GameState, GameSnapshot, Chapter, Room, Perspective, Movement,
-  Direction, ActionType, Side, Mode, RenderMode, SideEffect
+  Direction, ActionType, Side, Mode, RenderMode, SideEffect, Device
 } from './types';
 
 const SAVE_KEY_PREFIX = 'egz_save_';
@@ -206,10 +206,33 @@ export class Game {
     previousMovement: Movement | null;
     currentMovement: Movement | null;
     roomChanged: boolean;
+    launchDevice?: { itemId: string; device: Device };
   } {
     const previousMovementIdx = this.state.currentMovement;
     const previousMovement = this.getCurrentMovement();
     const previousRoom = this.state.currentRoom;
+
+    // Device interception. If the focused item declares a device whose
+    // invoke action matches, hand off to the UI to launch a modal instead
+    // of running the legacy handler. The actual flag/effect application
+    // happens later via solveDevice() when the player submits correct input.
+    if (itemId) {
+      const persp = this.getPerspective();
+      const items = this.getEffectiveItems(persp);
+      const item = items.find(i => i.id === itemId)
+        || this.findItemInRoom(this.state.currentRoom, itemId);
+      if (item?.device && item.device.invoke === action) {
+        return {
+          text: '',
+          movementChanged: false,
+          previousMovement,
+          currentMovement: previousMovement,
+          roomChanged: false,
+          launchDevice: { itemId: item.id, device: item.device },
+        };
+      }
+    }
+
     const result = this.actInner(action, itemId);
     const movementChanged = this.state.currentMovement !== previousMovementIdx;
     const roomChanged = this.state.currentRoom !== previousRoom;
@@ -219,6 +242,60 @@ export class Game {
       previousMovement,
       currentMovement: this.getCurrentMovement(),
       roomChanged,
+    };
+  }
+
+  // Called by the UI when the player submits input to a device modal. Returns
+  // correct=false if the input does not match the device's correct value (the
+  // UI keeps the modal open). On correct=true, the device's onSolve handler
+  // runs and effects apply exactly like a normal action handler.
+  solveDevice(itemId: string, input: string | Record<string, string>): {
+    text: string;
+    correct: boolean;
+    movementChanged: boolean;
+    previousMovement: Movement | null;
+    currentMovement: Movement | null;
+    roomChanged: boolean;
+  } {
+    const previousMovementIdx = this.state.currentMovement;
+    const previousMovement = this.getCurrentMovement();
+    const previousRoom = this.state.currentRoom;
+
+    const item = this.findItemInRoom(this.state.currentRoom, itemId);
+    const empty = {
+      text: '',
+      correct: false,
+      movementChanged: false,
+      previousMovement,
+      currentMovement: previousMovement,
+      roomChanged: false,
+    };
+    if (!item?.device) return empty;
+
+    const device = item.device;
+    let matches = false;
+    if (device.kind === 'combination') {
+      matches = typeof input === 'string' && input === device.correct;
+    } else if (device.kind === 'slot-assign') {
+      if (typeof input === 'object' && input) {
+        const keys = Object.keys(device.correct);
+        matches = keys.every(k => input[k] === device.correct[k])
+          && Object.keys(input).length === keys.length;
+      }
+    }
+
+    if (!matches) return empty;
+
+    const ctx = this.makeContext(item.id);
+    const result = device.onSolve(ctx);
+    this.applyEffects(result.effects);
+    return {
+      text: result.text,
+      correct: true,
+      movementChanged: this.state.currentMovement !== previousMovementIdx,
+      previousMovement,
+      currentMovement: this.getCurrentMovement(),
+      roomChanged: this.state.currentRoom !== previousRoom,
     };
   }
 
@@ -334,7 +411,7 @@ export class Game {
       }
     }
 
-    return { text: `Using ${invItemId} on the ${targetItemId} doesn't work.` };
+    return { text: `Using that on ${articulate(combined.name)} doesn't work.` };
   }
 
   private handleTake(item: { id: string; name: string; takeable: boolean; inventory: { label: string; examine: string } }): { text: string } {
@@ -415,6 +492,7 @@ export class Game {
 
   private checkTriggers(): void {
     for (const trigger of this.chapter.triggers) {
+      if (trigger.side && trigger.side !== this.state.side) continue;
       const fired = this.state.flags[`__trigger_${trigger.id}`];
       if (trigger.once && fired) continue;
       const allMet = trigger.when.every(c => this.state.flags[c.flag] === c.value);
