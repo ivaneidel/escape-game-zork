@@ -294,6 +294,7 @@ function startGameWithExisting(app: HTMLElement, _side: Side, game: Game, audio:
         movementChanged: result.movementChanged,
         transitionOut: result.previousMovement?.transitionOut,
         transitionIn: result.currentMovement?.transitionIn,
+        launchDevice: result.launchDevice,
       };
     },
     onUseItemOnRoom: (invItemId: string, targetId: string) => {
